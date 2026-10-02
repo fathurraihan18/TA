@@ -1,7 +1,8 @@
-"""Verifikasi otomatis cover: mesh rapat, ukuran/posisi lubang, dan tabrakan dengan komponen fisik."""
+"""Verifikasi otomatis cover (v2): mesh rapat, ukuran/posisi lubang, tabrakan komponen, keterjangkauan sekrup, fitur tipis."""
 import sys, os, json, glob
 import numpy as np
 import trimesh
+from shapely.ops import unary_union
 
 D = sys.argv[1] if len(sys.argv) > 1 else "."
 R = os.path.join(D, "_ref")
@@ -17,67 +18,101 @@ def report(name, ok, extra=""):
     print(f"[{'OK ' if ok else 'GAGAL'}] {name} {extra}")
 
 
+def solid(mesh, p):
+    return bool(mesh.contains(np.array([p], float))[0])
+
+
 print("=== 1. Integritas mesh ===")
 for nm, m in (("shell", shell), ("plate", plate)):
     report(f"{nm} watertight", m.is_watertight, f"| winding konsisten={m.is_winding_consistent} | volume={m.volume:.0f} mm3")
     b = m.bounds
     print(f"      bbox X[{b[0][0]:.2f},{b[1][0]:.2f}] Y[{b[0][1]:.2f},{b[1][1]:.2f}] Z[{b[0][2]:.2f},{b[1][2]:.2f}]  -> {np.ptp(b[:,0]):.2f} x {np.ptp(b[:,1]):.2f} x {np.ptp(b[:,2]):.2f} mm")
-    parts = m.split(only_watertight=False)
-    report(f"{nm} satu badan utuh", len(parts) == 1, f"({len(parts)} komponen terpisah)")
+    report(f"{nm} satu badan utuh", len(m.split(only_watertight=False)) == 1)
 
 print("\n=== 2. Probe lubang (titik DI DALAM lubang harus kosong, titik TEPI harus padat) ===")
-
-
-def solid(p):
-    return bool(shell.contains(np.array([p], float))[0])
-
-
-def probe_rect_x(name, ycen, zc, w, h, xs):  # lubang menembus sumbu X
-    inside = [(x, ycen + sy * (w / 2 - 0.1), zc + sz * (h / 2 - 0.1)) for x in xs for sy in (-1, 1) for sz in (-1, 1)] + [(x, ycen, zc) for x in xs]
-    outside = [(x, ycen + sy * (w / 2 + 0.25), zc) for x in xs for sy in (-1, 1)] + [(x, ycen, zc + sz * (h / 2 + 0.25)) for x in xs for sz in (-1, 1)]
-    return all(not solid(p) for p in inside) and all(solid(p) for p in outside)
-
-
-def probe_rect_y(name, xcen, zc, w, h, ys):
-    inside = [(xcen + sx * (w / 2 - 0.1), y, zc + sz * (h / 2 - 0.1)) for y in ys for sx in (-1, 1) for sz in (-1, 1)] + [(xcen, y, zc) for y in ys]
-    outside = [(xcen + sx * (w / 2 + 0.25), y, zc) for y in ys for sx in (-1, 1)] + [(xcen, y, zc + sz * (h / 2 + 0.25)) for y in ys for sz in (-1, 1)]
-    return all(not solid(p) for p in inside) and all(solid(p) for p in outside)
-
-
 tol = 0.2
-m = S["micro"]; j = S["jack"]; u = S["usbc"]; g = S["gland"]; s = S["switch"]
+m = S["micro"]; j = S["jack"]; u = S["usbc"]; g = S["gland"]; s = S["switch"]; belt = S["belt"]
 cav_hy = S["cavity"][1] / 2; cav_hx = S["cavity"][0] / 2
 out_hy = S["outer"][1] / 2; out_hx = S["outer"][0] / 2
+z_top = S["z"]["top"]
 
-report("micro-USB (BAWAH) 12.2 x 8.2 mm", probe_rect_y("micro", m["x"], m["zc"], m["w"] + tol, m["h"] + tol, [-cav_hy - 1.5, -cav_hy - 2.8]))
-# jack: lubang bulat
+
+def probe_rect_x(ycen, zc, w, h, xs):  # lubang menembus sumbu X (dinding Kanan)
+    inside = [(x, ycen + sy * (w / 2 - 0.1), zc + sz * (h / 2 - 0.1)) for x in xs for sy in (-1, 1) for sz in (-1, 1)] + [(x, ycen, zc) for x in xs]
+    outside = [(x, ycen + sy * (w / 2 + 0.25), zc) for x in xs for sy in (-1, 1)] + [(x, ycen, zc + sz * (h / 2 + 0.25)) for x in xs for sz in (-1, 1)]
+    return all(not solid(shell, p) for p in inside) and all(solid(shell, p) for p in outside)
+
+
+def probe_rect_y(xcen, zc, w, h, ys):  # lubang menembus sumbu Y (dinding Atas/Bawah)
+    inside = [(xcen + sx * (w / 2 - 0.1), y, zc + sz * (h / 2 - 0.1)) for y in ys for sx in (-1, 1) for sz in (-1, 1)] + [(xcen, y, zc) for y in ys]
+    outside = [(xcen + sx * (w / 2 + 0.25), y, zc) for y in ys for sx in (-1, 1)] + [(xcen, y, zc + sz * (h / 2 + 0.25)) for y in ys for sz in (-1, 1)]
+    return all(not solid(shell, p) for p in inside) and all(solid(shell, p) for p in outside)
+
+
 ang = np.linspace(0, 2 * np.pi, 12, endpoint=False)
+report("micro-USB (BAWAH) 12.2 x 8.2 mm", probe_rect_y(m["x"], m["zc"], m["w"] + tol, m["h"] + tol, [-cav_hy - 1.5, -cav_hy - 2.8]))
 r_in, r_out = (j["d"] + tol) / 2 - 0.1, (j["d"] + tol) / 2 + 0.25
 ins = [(j["x"] + r_in * np.cos(a), y, j["zc"] + r_in * np.sin(a)) for a in ang for y in (cav_hy + 1.0, cav_hy + 2.5)]
 outs = [(j["x"] + r_out * np.cos(a), y, j["zc"] + r_out * np.sin(a)) for a in ang for y in (cav_hy + 1.0, cav_hy + 2.5)]
-report("jack AD8232 (ATAS) bulat d=7.2 mm", all(not solid(p) for p in ins) and all(solid(p) for p in outs))
-report("USB-C powerbank (KANAN) 10.4 x 4.6 mm", probe_rect_x("usbc", u["y"], u["zc"], u["w"] + tol, u["h"] + tol, [-cav_hx - 1.0, -cav_hx - 2.5]))
-# gland: lubang bulat d=19 menembus pelat tebal 3 mm
+report("jack AD8232 (ATAS) bulat d=7.2 mm", all(not solid(shell, p) for p in ins) and all(solid(shell, p) for p in outs))
+report("USB-C powerbank (KANAN) 10.4 x 4.6 mm", probe_rect_x(u["y"], u["zc"], u["w"] + tol, u["h"] + tol, [-cav_hx - 1.0, -cav_hx - 2.5]))
 gx_mid = -(out_hx + g["out"] - g["plate"] / 2)
 r_in, r_out = g["hole"] / 2 - 0.1, g["hole"] / 2 + 0.3
 ins = [(gx_mid, g["y"] + r_in * np.cos(a), g["zc"] + r_in * np.sin(a)) for a in ang]
 outs = [(gx_mid, g["y"] + r_out * np.cos(a), g["zc"] + r_out * np.sin(a)) for a in ang]
-report("gland PG11 lubang d=19.0 mm", all(not solid(p) for p in ins) and all(solid(p) for p in outs))
-# kantong mur segi-enam harus kosong di dalam, dan harus ada dinding
+report(f"gland PG7 lubang d={g['hole']:.1f} mm", all(not solid(shell, p) for p in ins) and all(solid(shell, p) for p in outs))
 R_hex = g["nut_af"] / np.sqrt(3)
 x_pocket = -(out_hx + g["out"] - g["plate"] - 2.0)
 ins = [(x_pocket, g["y"] + (R_hex - 0.5) * np.cos(np.radians(90 + 60 * k)), g["zc"] + (R_hex - 0.5) * np.sin(np.radians(90 + 60 * k))) for k in range(6)]
-report("kantong mur segi-enam (AF 24.6) kosong", all(not solid(p) for p in ins))
-# saklar: jendela panel 13.7 x 9.2
-y_panel = out_hy + s["out"] - s["panel"] / 2
-pts_in = [(s["x"] + sx * 6.7, y_panel, s["zc"] + sz * 4.4) for sx in (-1, 1) for sz in (-1, 1)] + [(s["x"], y_panel, s["zc"])]
-pts_out = [(s["x"] + sx * 7.05, y_panel, s["zc"]) for sx in (-1, 1)] + [(s["x"], y_panel, s["zc"] + sz * 4.9) for sz in (-1, 1)]
-report("saklar KCD11 jendela 13.7 x 9.2 mm", all(not solid(p) for p in pts_in) and all(solid(p) for p in pts_out))
-# jendela layar
+outs = [(x_pocket, g["y"] + (g["nut_af"] / 2 + 0.4), g["zc"]), (x_pocket, g["y"] - (g["nut_af"] / 2 + 0.4), g["zc"])]
+report(f"kantong mur segi-enam AF {g['nut_af']:.1f}", all(not solid(shell, p) for p in ins) and all(solid(shell, p) for p in outs))
+y_pan = out_hy - s["panel"] / 2
+pts_in = [(s["x"] + sx * 6.8, y_pan, s["zc"] + sz * 4.4) for sx in (-1, 1) for sz in (-1, 1)] + [(s["x"], y_pan, s["zc"])]
+pts_out = [(s["x"] + sx * 7.4, y_pan, s["zc"]) for sx in (-1, 1)] + [(s["x"], y_pan, s["zc"] + sz * 4.9) for sz in (-1, 1)]
+report("saklar KCD11 datar: jendela panel 14.1 x 9.1 mm", all(not solid(shell, p) for p in pts_in) and all(solid(shell, p) for p in pts_out))
+pts_rec = [(s["x"] + sx * 8.0, cav_hy + 0.8, s["zc"] + sz * 5.4) for sx in (-1, 1) for sz in (-1, 1)]
+pts_rec_out = [(s["x"] + 8.6, cav_hy + 0.8, s["zc"]), (s["x"], cav_hy + 0.8, s["zc"] + 5.9)]
+report("saklar KCD11: lekuk panel 1.6 mm (16.6 x 11.2)", all(not solid(shell, p) for p in pts_rec) and all(solid(shell, p) for p in pts_rec_out))
 w = S["window"]
-pin = [(w[2] + sx * (w[0] / 2 - 0.9), sy * (w[1] / 2 - 0.9), 32.7) for sx in (-1, 1) for sy in (-1, 1)] + [(w[2], 0, 32.7)]  # sudut membulat r=2
+pin = [(w[2] + sx * (w[0] / 2 - 0.9), sy * (w[1] / 2 - 0.9), 32.7) for sx in (-1, 1) for sy in (-1, 1)] + [(w[2], 0, 32.7)]
 pout = [(w[2] + sx * (w[0] / 2 + 0.3), 0, 32.7) for sx in (-1, 1)] + [(w[2], sy * (w[1] / 2 + 0.3), 32.7) for sy in (-1, 1)]
-report("jendela layar 79 x 52 mm", all(not solid(p) for p in pin) and all(solid(p) for p in pout))
+report("jendela layar 79 x 52 mm", all(not solid(shell, p) for p in pin) and all(solid(shell, p) for p in pout))
+ok_slot = True
+for sgn in (1, -1):
+    cx = sgn * belt["slot_cx"]
+    ins = [(cx + dx, dy, -2.0) for dx in (-2.5, 0, 2.5) for dy in (-belt["slot_l"] / 2 + 3.2, 0, belt["slot_l"] / 2 - 3.2)]
+    outs = [(cx + sgn_ * (belt["slot_w"] / 2 + 0.4), 0, -2.0) for sgn_ in (-1, 1)] + [(cx, sgn_ * (belt["slot_l"] / 2 + 0.4), -2.0) for sgn_ in (-1, 1)]
+    ok_slot &= all(not solid(plate, p) for p in ins) and all(solid(plate, p) for p in outs)
+report(f"2 slot sabuk {belt['slot_w']:.0f} x {belt['slot_l']:.0f} mm di sayap (X=+-{belt['slot_cx']:.1f})", ok_slot)
+
+print("\n=== 2b. Boss sekrup penutup benar-benar ada dan berlubang pilot ===")
+ok_boss = True
+for (px, py) in S["screws"]:
+    side = 1 if py > 0 else -1
+    zmid = 2.0
+    mid_block = (px + 3.5, py, zmid)                       # badan boss (harus padat)
+    ring = [(px + 1.42 * np.cos(a), py + 1.42 * np.sin(a), zmid) for a in ang]   # dinding lubang pilot (r 1.35) harus padat
+    axis = (px, py, zmid)                                   # sumbu pilot harus kosong
+    top_axis = (px, py, S["screw"]["boss_top"] - 0.3)
+    ok_boss &= solid(shell, mid_block) and all(solid(shell, p_) for p_ in ring) and (not solid(shell, axis)) and (not solid(shell, top_axis))
+    # boss harus menyatu dengan dinding: titik antara boss dan dinding padat
+    ok_boss &= solid(shell, (px, side * (cav_hy + 0.2), zmid)) and solid(shell, (px, side * (cav_hy - 5.0), zmid))
+report("4 boss sekrup ada (padat), menempel di dinding, pilot Ø2.7 terbuka", ok_boss)
+
+# boss tidak boleh berada di bawah kaki komponen (lubang bor PCB) -> jarak >= 1.5 mm dari tepi boss
+holes = json.load(open(os.path.join(D, "data", "pcb_holes.json")))["holes"]
+XH_, YH_ = 56.007, 33.655
+ok_lead = True; min_gap = 99
+for (px, py) in S["screws"]:
+    side = 1 if py > 0 else -1
+    bx0, bx1 = px - 5.0, px + 5.0
+    by0, by1 = sorted([side * cav_hy + side * 0.3, side * cav_hy - side * 6.0])
+    for h in holes:
+        hx, hy = -(h["xg"] - XH_), -(h["yg"] - YH_)
+        dx = max(bx0 - hx, 0, hx - bx1); dy = max(by0 - hy, 0, hy - by1)
+        gap = np.hypot(dx, dy) - h["d"] / 2
+        min_gap = min(min_gap, gap)
+report("boss sekrup jauh dari kaki komponen/solder PCB (>= 1.5 mm)", min_gap >= 1.5, f"(jarak terdekat {min_gap:.2f} mm)")
 
 print("\n=== 3. Tabrakan komponen fisik vs rumah (volume irisan harus 0) ===")
 refs = sorted(glob.glob(os.path.join(R, "ref_*.stl")))
@@ -89,32 +124,65 @@ for f in refs:
         try:
             inter = trimesh.boolean.intersection([ref, pm], engine="manifold")
             vol = abs(inter.volume) if inter is not None and len(inter.faces) else 0.0
-        except Exception as e:
+        except Exception:
             vol = float("nan")
         row.append((pn, vol))
-    good = all((v < 0.5) for _, v in row)
-    report(f"{nm:22s}", good, " ".join(f"{pn}:{v:.3f}mm3" for pn, v in row))
-
+    if nm.startswith("Sekrup"):
+        # sekrup M3 mengulir sendiri ke lubang pilot 2.7 mm: irisan dgn shell = volume ulir (diharapkan kecil), dgn plate = 0
+        eng = row[0][1]
+        exp = 4 * np.pi * (1.5 ** 2 - (S.get("pilot", 2.7) / 2) ** 2) * (S["screw"]["boss_top"] - S["z"]["split"])
+        good = (exp * 0.5 < eng < exp * 1.3) and row[1][1] < 0.5   # harus ADA cengkeraman ulir (bukan 0) tapi tidak berlebihan
+        report(f"{nm:22s}", good, f"ulir tertanam {eng:.1f} mm3 (perkiraan {exp:.1f}); vs plate {row[1][1]:.2f}")
+    else:
+        good = all((v < 0.5) for _, v in row)
+        report(f"{nm:22s}", good, " ".join(f"{pn}:{v:.3f}mm3" for pn, v in row))
 inter = trimesh.boolean.intersection([shell, plate], engine="manifold")
 v = abs(inter.volume) if len(inter.faces) else 0.0
 report("shell vs back plate saling menembus", v < 0.5, f"({v:.3f} mm3)")
 
-print("\n=== 4. Jarak bebas (clearance) ===")
+print("\n=== 4. Sekrup penutup: keterjangkauan ===")
+sc = trimesh.load(os.path.join(R, "ref_Sekrup_M3x8.stl"))
+tip_z = sc.bounds[1][2]
+eng = tip_z - S["z"]["split"]
+print(f"      panjang M3 = {S['screw']['len']:.0f} mm | kepala rata di Z={S['z']['plate_bottom']:.1f} | ujung ulir di Z={tip_z:.2f} | tertanam di boss = {eng:.2f} mm")
+report("ujung sekrup tidak menyentuh PCB (celah >= 0.3 mm)", S["z"]["pcb"][0] - tip_z >= 0.3, f"(celah {S['z']['pcb'][0] - tip_z:.2f} mm)")
+report("tertanam di boss >= 4.5 mm (cukup untuk M3 ulir sendiri di PETG)", eng >= 4.5)
+report("ujung sekrup masih di dalam boss/pilot", tip_z <= S["screw"]["boss_top"] + 0.2)
+
+print("\n=== 5. Jarak bebas (clearance) ===")
 from trimesh.proximity import closest_point
-
-
-def mindist(a_name, a_path, mesh):
-    a = trimesh.load(a_path)
-    pts = a.sample(4000)
-    _, d, _ = closest_point(mesh, pts)
-    return d.min()
-
-
-for nm in ("PCB_hijau", "TFT_PCB", "Kaca_touch", "Baut_spacer"):
+for nm in ("PCB_hijau", "TFT_PCB", "Kaca_touch", "Baut_spacer", "Badan_saklar_KCD11", "Gland_PG7_+_mur"):
     f = os.path.join(R, f"ref_{nm}.stl")
-    d_sh = mindist(nm, f, shell)
-    d_pl = mindist(nm, f, plate)
-    print(f"      {nm:14s} jarak min ke shell = {d_sh:.2f} mm | ke plate = {d_pl:.2f} mm")
+    a = trimesh.load(f)
+    pts = a.sample(3000)
+    d_sh = closest_point(shell, pts)[1].min()
+    d_pl = closest_point(plate, pts)[1].min()
+    print(f"      {nm:20s} jarak min ke shell = {d_sh:.2f} mm | ke plate = {d_pl:.2f} mm")
+sw = trimesh.load(os.path.join(R, "ref_Badan_saklar_KCD11.stl"))
+tft = trimesh.load(os.path.join(R, "ref_TFT_PCB.stl"))
+gap = tft.bounds[0][2] - sw.bounds[1][2]
+report("badan saklar tidak menyentuh PCB TFT", gap >= 0.8, f"(celah vertikal {gap:.2f} mm)")
+
+print("\n=== 6. Fitur tipis (< 0.9 mm tidak akan tercetak dengan nozzle 0.4) ===")
+for nm, mesh, zs in (("shell", shell, np.arange(-0.4, 33.9, 0.25)), ("plate", plate, np.arange(-3.4, 5.0, 0.25))):
+    found = []
+    for z in zs:
+        sec = mesh.section(plane_origin=[0, 0, z], plane_normal=[0, 0, 1])
+        if sec is None:
+            continue
+        p, T = sec.to_planar()
+        U = unary_union(p.polygons_full)
+        lost = U.difference(U.buffer(-0.45, join_style=2).buffer(0.45, join_style=2))
+        for gm in (lost.geoms if hasattr(lost, "geoms") else [lost]):
+            if gm.area > 0.3:
+                c = gm.centroid.coords[0]
+                found.append((round(z, 2), round(gm.area, 2), np.round(trimesh.transform_points([[c[0], c[1], 0]], T)[0][:2], 1).tolist()))
+    report(f"{nm}: tidak ada fitur tipis", len(found) == 0, f"({len(found)} potongan)" + (f" contoh {found[:3]}" if found else ""))
+
+print("\n=== 7. Estimasi massa (PETG 1.27 g/cm3, 3 perimeter + infill 20 % ~ 55 % volume) ===")
+for nm, mesh in (("shell", shell), ("plate", plate)):
+    print(f"      {nm}: volume {mesh.volume/1000:.1f} cm3 -> sekitar {mesh.volume/1000*1.27*0.55:.0f} g")
+print(f"      total cover: sekitar {(shell.volume+plate.volume)/1000*1.27*0.55:.0f} g (belum termasuk elektronik)")
 
 print("\nHASIL AKHIR:", "SEMUA LOLOS" if ok_all else "ADA YANG GAGAL")
 sys.exit(0 if ok_all else 1)

@@ -1,5 +1,5 @@
 """
-Cover alat ECG + PPG (ESP32 + TFT ILI9488 3.5" + PCB custom)  -  generator Blender (bpy)
+Cover alat ECG + PPG (ESP32 + TFT ILI9488 3.5" + PCB custom)  -  generator Blender (bpy)   [v2]
 
 Jalankan:   python make_case.py <folder_output>
 Satuan  :   1 unit Blender = 1 mm
@@ -13,6 +13,9 @@ Titik (0,0) = pusat pola 4 lubang baut M3 (dari Gerber).
 Konversi Gerber -> model:  X = -(Xg - 56.007)   Y = -(Yg - 33.655)
 (PCB di Gerber ternyata terpasang diputar 180 derajat terhadap tampilan atas Gerber;
  terbukti dari posisi konektor PPG, port USB-C, header TFT dan micro-USB ESP32 pada foto.)
+
+Perubahan v2: gland PG7 (tonjolan kecil), saklar KCD11 datar tanpa pod, sayap slot sabuk di back plate,
+chamfer/rounding ergonomis, boss sekrup diperkuat.
 """
 import bpy, bmesh, math, os, sys, json
 from mathutils import Vector, Matrix
@@ -39,7 +42,7 @@ GLASS_W, GLASS_H, GLASS_CX = 85.0, 55.0, -0.5                  # kaca touch (uku
 AA_W, AA_H = 73.44, 48.96                                      # area aktif (datasheet)
 
 # ---- tumpukan Z (dari ujung ekor baut = 0) --------------------------------
-TAIL = 5.0                    # panjang ekor baut bawah
+TAIL = 5.0                    # panjang ekor baut bawah (termasuk mur)
 PCB_T = 1.6
 SPACER = 20.0
 GLASS_T = 3.0                 # kaca touch + kepala baut atas = 3 mm
@@ -51,7 +54,8 @@ Z_FRONT = Z_TFT1 + GLASS_T                          # 31.2  (permukaan kaca)
 # ---- rumah ---------------------------------------------------------------
 WALL = 3.0
 CAV_HX, CAV_HY = 49.5, 28.75                        # rongga 99.0 x 57.5 (celah >= 0.4 mm tiap sisi)
-CAV_R, OUT_R = 0.5, 3.5
+CAV_R, OUT_R = 0.5, 5.0                             # sudut luar R5 (nyaman di badan)
+CH = 1.2                                            # chamfer 45 derajat sisi depan shell & sisi belakang plate
 Z_SPLIT = -0.5                                      # lantai rongga / bidang belah shell-plate
 FRONT_GAP = 0.3
 Z_CAV_TOP = Z_FRONT + FRONT_GAP                     # 31.5
@@ -65,22 +69,29 @@ HOLE_TOL = 0.2                                      # kompensasi cetak (lubang j
 WIN_W, WIN_H, WIN_CX, WIN_CY, WIN_R = 79.0, 52.0, GLASS_CX, 0.0, 2.0
 
 # ---- lubang tetap (posisi dari Gerber + ukuran Anda) -----------------------
-MICRO = dict(x=mx(27.686), zc=17.0, w=12.0, h=8.0)            # BAWAH: dinding Y-  (bawah 13..21 mm dari belakang)
+MICRO = dict(x=mx(27.686), zc=17.0, w=12.0, h=8.0)            # BAWAH: dinding Y-  (13..21 mm dari belakang)
 JACK = dict(x=mx(68.326), zc=15.0, d=7.0)                      # ATAS : dinding Y+  (kabel jack 5-6 mm)
 USBC = dict(y=my(23.936), zc=9.65, w=10.4, h=4.6)             # KANAN: dinding X-  (port 8.0 .. 11.3 mm dari belakang)
-GLAND = dict(y=my(45.85), zc=15.0, thread=18.6, hole=19.0, nut_af=24.6, nut_depth=6.0, plate=3.0, out=6.0)  # PG11
-SWITCH = dict(x=-40.0, zc=18.5, cut_w=13.6, cut_h=9.1, ch_w=17.0, ch_h=12.0, out=9.6, panel=1.6)  # KCD11
+# gland PG7: ulir 12.5 mm, panjang ulir 8 mm, kabel 3-6.5 mm.  nut_af/nut_h = UKUR mur gland Anda (default PG7 umum)
+GLAND = dict(y=my(45.85), zc=13.2, hole=12.8, nut_af=15.4, nut_h=4.4, pocket=5.2, plate=2.6)
+GLAND["out"] = GLAND["pocket"] + GLAND["plate"] - WALL        # tonjolan ke luar dinding (4.8 mm)
+# saklar KCD11 mini 10x15 mm: lubang panel 14 x 9, badan 12.5 mm di belakang panel, tonjolan rocker ~4 mm
+SWITCH = dict(x=3.0, zc=21.0, cut_w=14.0, cut_h=9.0, rec_w=16.6, rec_h=11.2, panel=1.6, depth=12.5)
 
 # ---- baut penutup plate (M3 x 8 flat head, ke boss di dinding panjang) ------
 SCREW_X = [23.0, -23.0]
-BOSS_W, BOSS_IN, BOSS_TOP = 8.0, 6.0, 4.8
-PILOT_D, CLEAR_D, CSK_D = 2.7, 3.4, 6.4
+BOSS_W, BOSS_IN, BOSS_TOP = 10.0, 6.0, 4.3
+PILOT_D, CLEAR_D, CSK_D, CSK_DEPTH, SCREW_LEN = 2.7, 3.4, 6.4, 1.6, 8.0
 
 # ---- tiang penyangga PCB di back plate ------------------------------------
 POST_OD, POST_ID = 10.0, 7.2
 
+# ---- sayap slot sabuk (back plate) -------------------------------------------
+WING = 14.0                         # panjang sayap tiap ujung
+BELT_SLOT_W, BELT_SLOT_L = 6.0, 44.0   # slot: sabuk tebal <= 4.5 mm, lebar <= 40 mm
+BELT_SLOT_OFF = 3.5                 # jarak tepi dalam slot dari dinding shell
+
 # ============================================================ HELPER BLENDER ==
-scene = bpy.context.scene
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene = bpy.context.scene
 scene.unit_settings.system = "METRIC"
@@ -120,6 +131,22 @@ def prism(name, pts, a0, a1, axis="Z", coll=None):
     for i in range(n):
         j = (i + 1) % n
         bm.faces.new([lo[i], lo[j], hi[j], hi[i]])
+    bmesh.ops.triangulate(bm, faces=bm.faces[:])
+    return _obj(name, bm, coll)
+
+
+def loft(name, rings, coll=None):
+    """rings = [(pts, z), ...] dengan jumlah titik sama; menghasilkan benda tertutup (untuk chamfer)."""
+    coll = coll or COL_MAIN
+    bm = bmesh.new()
+    vr = [[bm.verts.new((p, q, z)) for p, q in pts] for pts, z in rings]
+    n = len(rings[0][0])
+    bm.faces.new(vr[0])
+    bm.faces.new(vr[-1][::-1])
+    for a, b in zip(vr[:-1], vr[1:]):
+        for i in range(n):
+            j = (i + 1) % n
+            bm.faces.new([a[i], a[j], b[j], b[i]])
     bmesh.ops.triangulate(bm, faces=bm.faces[:])
     return _obj(name, bm, coll)
 
@@ -197,28 +224,27 @@ def cut_all(target, parts):
 
 
 # ============================================================ SHELL (DEPAN) ==
-shell = prism("Cover_Depan_Shell", rrect(0, 0, OUT_HX, OUT_HY, OUT_R), Z_SPLIT, Z_TOP)
+N_RR = 12
+shell = loft("Cover_Depan_Shell", [
+    (rrect(0, 0, OUT_HX, OUT_HY, OUT_R, N_RR), Z_SPLIT),
+    (rrect(0, 0, OUT_HX, OUT_HY, OUT_R, N_RR), Z_TOP - CH),
+    (rrect(0, 0, OUT_HX - CH, OUT_HY - CH, OUT_R - CH, N_RR), Z_TOP)])
 
-# --- boss gland PG11 (sisi KANAN, -X) : blok tebal, mur segi-enam ditanam di dalam
+# --- boss gland PG7 (sisi KANAN, -X): blok kecil dengan kantong mur segi-enam dari dalam
 g = GLAND
 gy, gz = g["y"], g["zc"]
-g_hy = g["nut_af"] / 2 + 2.3
-g_hz = g["nut_af"] / math.sqrt(3) + 2.3
-g_ztop = gz + g_hz
-x_in, x_out = -CAV_HX, -(OUT_HX + g["out"])
-slope_x = -(OUT_HX + g["out"] - (Z_TOP - g_ztop))                # kemiringan 45 derajat (tanpa support)
-boss_g = prism("boss_gland",
-               [(x_in, Z_SPLIT), (x_out, Z_SPLIT), (x_out, g_ztop), (slope_x, Z_TOP), (x_in, Z_TOP)],
-               gy - g_hy, gy + g_hy, "Y")
+g_hy = g["nut_af"] / 2 + 2.2
+g_hz = g["nut_af"] / math.sqrt(3) + 2.2
+g_zlo, g_zhi = gz - g_hz, gz + g_hz
+U = g["out"]
 
-# --- boss saklar (sisi ATAS, +Y) : ruang badan saklar + panel tipis untuk snap-in
-s = SWITCH
-sx0, sx1 = s["x"] - 11.0, s["x"] + 11.0
-s_zlo, s_zhi = s["zc"] - 8.5, s["zc"] + 8.5
-y_out = OUT_HY + s["out"]
-boss_s = prism("boss_saklar",
-               [(CAV_HY - 0.5, s_zlo), (y_out, s_zlo), (y_out, s_zhi), (y_out - (Z_TOP - s_zhi), Z_TOP), (CAV_HY - 0.5, Z_TOP)],
-               sx0, sx1, "X")
+
+def gx(u): return -(OUT_HX + u)          # u = jarak ke luar dari muka luar dinding Kanan
+
+
+boss_g = prism("boss_gland",
+               [(gx(-WALL), g_zlo), (gx(U), g_zlo), (gx(U), g_zhi), (gx(0), g_zhi + U), (gx(-WALL), g_zhi + U)],
+               gy - g_hy, gy + g_hy, "Y")
 
 # --- boss sekrup penutup (di bawah PCB, menempel di dinding Atas/Bawah)
 screw_pos = []
@@ -230,12 +256,13 @@ for sxp in SCREW_X:
         boss_blocks.append(box("boss_sekrup", sxp - BOSS_W / 2, sxp + BOSS_W / 2, y_a, y_b, Z_SPLIT, BOSS_TOP))
         screw_pos.append((sxp, wall_in - side * 3.5))
 
-union_all(shell, [boss_g, boss_s] + boss_blocks)
+union_all(shell, [boss_g])        # (boss sekrup ditambah SETELAH rongga dipotong, kalau tidak ikut terhapus)
 
 # --- rongga utama + jendela layar
 cav = prism("cav", rrect(0, 0, CAV_HX, CAV_HY, CAV_R), Z_SPLIT - 0.2, Z_CAV_TOP)
 win = prism("win", rrect(WIN_CX, WIN_CY, WIN_W / 2, WIN_H / 2, WIN_R), Z_CAV_TOP - 0.5, Z_TOP + 0.5)
 cut_all(shell, [cav, win])
+union_all(shell, boss_blocks)
 
 # --- lubang sisi BAWAH (-Y): micro-USB ESP32
 m = MICRO
@@ -246,33 +273,40 @@ cut_all(shell, [box("micro", m["x"] - (m["w"] + HOLE_TOL) / 2, m["x"] + (m["w"] 
 j = JACK
 cut_all(shell, [cyl("jack", j["x"], j["zc"], (j["d"] + HOLE_TOL) / 2, CAV_HY - 0.5, OUT_HY + 0.5, "Y")])
 
-# --- panel + ruang saklar KCD11
-chamber = box("ch", s["x"] - s["ch_w"] / 2, s["x"] + s["ch_w"] / 2, CAV_HY - 0.8, y_out - s["panel"],
-              s["zc"] - s["ch_h"] / 2, s["zc"] + s["ch_h"] / 2)
-panel = box("pn", s["x"] - (s["cut_w"] + 0.1) / 2, s["x"] + (s["cut_w"] + 0.1) / 2, y_out - s["panel"] - 0.1, y_out + 0.5,
-            s["zc"] - (s["cut_h"] + 0.1) / 2, s["zc"] + (s["cut_h"] + 0.1) / 2)
-cut_all(shell, [chamber, panel])
+# --- saklar KCD11 datar: jendela panel 14x9 + lekuk tipis dari dalam (panel 1.6 mm untuk snap-in)
+s = SWITCH
+y_panel_in = OUT_HY - s["panel"]
+rec = box("rec", s["x"] - s["rec_w"] / 2, s["x"] + s["rec_w"] / 2, CAV_HY - 0.5, y_panel_in,
+          s["zc"] - s["rec_h"] / 2, s["zc"] + s["rec_h"] / 2)
+swc = box("swc", s["x"] - (s["cut_w"] + 0.1) / 2, s["x"] + (s["cut_w"] + 0.1) / 2, y_panel_in - 0.1, OUT_HY + 0.5,
+          s["zc"] - (s["cut_h"] + 0.1) / 2, s["zc"] + (s["cut_h"] + 0.1) / 2)
+cut_all(shell, [rec, swc])
 
 # --- lubang sisi KANAN (-X): USB-C powerbank
 u = USBC
 cut_all(shell, [box("usbc", -OUT_HX - 0.5, -CAV_HX + 0.5, u["y"] - (u["w"] + HOLE_TOL) / 2, u["y"] + (u["w"] + HOLE_TOL) / 2,
                     u["zc"] - (u["h"] + HOLE_TOL) / 2, u["zc"] + (u["h"] + HOLE_TOL) / 2)])
 
-# --- gland PG11: kantong mur segi-enam (dari dalam) + lubang ulir
+# --- gland PG7: kantong mur segi-enam (dari dalam) + lubang ulir
 x_pocket_in = -CAV_HX + 0.1
-x_pocket_bot = -(OUT_HX + g["out"] - g["plate"])
+x_pocket_bot = gx(g["pocket"] - WALL)
 pocket = prism("pocket", hexagon(gy, gz, g["nut_af"], True), x_pocket_bot, x_pocket_in, "X")
-ghole = cyl("ghole", gy, gz, g["hole"] / 2, x_out - 0.5, x_pocket_bot + 0.1, "X")
+ghole = cyl("ghole", gy, gz, g["hole"] / 2, gx(U) - 0.5, x_pocket_bot + 0.1, "X")
 cut_all(shell, [pocket, ghole])
 
-# --- lubang pilot sekrup penutup
-pilots = [cyl("pilot", px, py, PILOT_D / 2, Z_SPLIT - 0.2, BOSS_TOP - 0.5, "Z", n=32) for px, py in screw_pos]
+# --- lubang pilot sekrup penutup (tembus ke atas boss supaya M3x8 tidak mentok)
+pilots = [cyl("pilot", px, py, PILOT_D / 2, Z_SPLIT - 0.2, BOSS_TOP + 0.2, "Z", n=32) for px, py in screw_pos]
 cut_all(shell, pilots)
 
 # ============================================================ BACK PLATE =====
-plate = prism("Cover_Belakang_BackPlate", rrect(0, 0, OUT_HX, OUT_HY, OUT_R), Z_PLATE0, Z_SPLIT)
+PX, PY = OUT_HX + WING, OUT_HY                      # plate + sayap = satu persegi panjang membulat
+PR = 6.0
+plate = loft("Cover_Belakang_BackPlate", [
+    (rrect(0, 0, PX - CH, PY - CH, PR - CH, N_RR), Z_PLATE0),
+    (rrect(0, 0, PX, PY, PR, N_RR), Z_PLATE0 + CH),
+    (rrect(0, 0, PX, PY, PR, N_RR), Z_SPLIT)])
 
-# rim penengah (masuk rongga, celah 0.2 mm), dipotong di sekitar boss sekrup
+# rim penengah (masuk rongga, celah 0.2 mm), dipotong di sekitar boss sekrup dan sudut
 rim_o = prism("rim_o", rrect(0, 0, CAV_HX - 0.2, CAV_HY - 0.2, 0.3), Z_SPLIT - 0.01, Z_SPLIT + 2.0)
 rim_i = prism("rim_i", rrect(0, 0, CAV_HX - 1.4, CAV_HY - 1.4, 0.3), Z_SPLIT - 0.1, Z_SPLIT + 2.1)
 bop(rim_o, rim_i, "DIFFERENCE")
@@ -291,10 +325,8 @@ union_all(plate, [rim_o])
 # tiang penyangga PCB (cincin berongga untuk ekor baut + mur), dipangkas oleh dinding rongga
 for k, (px, py) in enumerate(MOUNT):
     post = cyl(f"post{k}", px, py, POST_OD / 2, Z_SPLIT - 0.01, Z_PCB0, "Z", n=64)
-    # dipangkas 0.6 mm dari dinding supaya rongga mur tembus ke sisi luar (tanpa sliver tipis)
     clip = prism(f"clip{k}", rrect(0, 0, CAV_HX - 0.6, CAV_HY - 0.6, 0.3), Z_SPLIT - 0.3, Z_PCB0 + 0.5)
     bop(post, clip, "INTERSECT")
-    # buang ujung runcing di kuadran luar (dekat sudut dinding) supaya tidak ada sliver tipis
     sx, sy = (1 if px > 0 else -1), (1 if py > 0 else -1)
     xa, xb = sorted([px + sx * 1.5, px + sx * 9.0])
     ya, yb = sorted([py + sy * 1.5, py + sy * 9.0])
@@ -306,7 +338,13 @@ for k, (px, py) in enumerate(MOUNT):   # rongga ekor baut + mur juga memotong ri
 # lubang sekrup + countersink (M3 flat head)
 for px, py in screw_pos:
     bop(plate, cyl("thru", px, py, CLEAR_D / 2, Z_PLATE0 - 0.2, Z_SPLIT + 0.2, "Z", n=32))
-    bop(plate, frustum("csk", px, py, CSK_D / 2 + 0.1, CLEAR_D / 2, Z_PLATE0 - 0.1, Z_PLATE0 + 1.6))
+    bop(plate, frustum("csk", px, py, CSK_D / 2 + 0.1, CLEAR_D / 2, Z_PLATE0 - 0.1, Z_PLATE0 + CSK_DEPTH))
+
+# slot sabuk (2): lubang vertikal (sumbu Z) di sayap -> sabuk turun lewat slot, lewat di belakang plate, naik lewat slot lain
+SLOT_CX = OUT_HX + BELT_SLOT_OFF + BELT_SLOT_W / 2
+for sgn in (+1, -1):
+    bop(plate, prism("slot_sabuk", rrect(sgn * SLOT_CX, 0, BELT_SLOT_W / 2, BELT_SLOT_L / 2, BELT_SLOT_W / 2, 10),
+                     Z_PLATE0 - 0.5, Z_SPLIT + 0.5))
 
 # ============================================================ REFERENSI (ghost) ==
 ghosts = {}
@@ -322,36 +360,43 @@ def ghost(name, ob, color):
     return ob
 
 
-# PCB hijau, PCB merah, kaca
 ghost("PCB_hijau", box("g", PCB["x0"], PCB["x1"], PCB["y0"], PCB["y1"], Z_PCB0, Z_PCB1, COL_GHOST), (0.05, 0.45, 0.15, 1))
 ghost("TFT_PCB", box("g", -TFT_W / 2, TFT_W / 2, -TFT_H / 2, TFT_H / 2, Z_TFT0, Z_TFT1, COL_GHOST), (0.7, 0.05, 0.05, 1))
 ghost("Kaca_touch", box("g", GLASS_CX - GLASS_W / 2, GLASS_CX + GLASS_W / 2, -GLASS_H / 2, GLASS_H / 2, Z_TFT1, Z_FRONT, COL_GHOST),
       (0.05, 0.05, 0.08, 1))
 ghost("Area_aktif", box("g", GLASS_CX - AA_W / 2, GLASS_CX + AA_W / 2, -AA_H / 2, AA_H / 2, Z_FRONT - 0.05, Z_FRONT, COL_GHOST),
       (0.2, 0.5, 0.9, 1))
-sp = box("g", 0, 0.1, 0, 0.1, 0, 0.1, COL_GHOST)
 sp_parts = []
 for k, (px, py) in enumerate(MOUNT):
     sp_parts.append(cyl(f"sp{k}", px, py, 2.75, Z_PCB1, Z_TFT0, "Z", n=32, coll=COL_GHOST))
     sp_parts.append(cyl(f"tail{k}", px, py, 3.2, 0.0, Z_PCB0, "Z", n=32, coll=COL_GHOST))
     sp_parts.append(cyl(f"head{k}", px, py, 3.0, Z_TFT1, Z_FRONT, "Z", n=32, coll=COL_GHOST))
-bpy.data.objects.remove(sp, do_unlink=True)
 base = sp_parts[0]
 for p_ in sp_parts[1:]:
     bop(base, p_, "UNION")
-ghost("Baut_spacer", base, (0.8, 0.65, 0.2, 1))
+ghost("Baut_spacer", base, (0.85, 0.65, 0.15, 1))
+# sekrup penutup M3x8 flat head (kepala rata dengan sisi belakang plate)
+scr = None
+for k, (px, py) in enumerate(screw_pos):
+    a = cyl(f"s{k}", px, py, 1.5, Z_PLATE0, Z_PLATE0 + SCREW_LEN, "Z", n=24, coll=COL_GHOST)
+    h = frustum(f"h{k}", px, py, CSK_D / 2, 1.5, Z_PLATE0, Z_PLATE0 + 1.6)
+    COL_MAIN.objects.unlink(h); COL_GHOST.objects.link(h)
+    bop(a, h, "UNION")
+    if scr is None: scr = a
+    else: bop(scr, a, "UNION")
+ghost("Sekrup_M3x8", scr, (0.7, 0.7, 0.75, 1))
 # konektor
 ghost("microUSB_ESP32", box("g", m["x"] - 3.9, m["x"] + 3.9, my(63.9), my(57.8), 16.5, 19.1, COL_GHOST), (0.7, 0.7, 0.75, 1))
 ghost("USBC_powerbank", box("g", mx(106.1), mx(98.8), my(28.2), my(19.3), 8.0, 11.3, COL_GHOST), (0.7, 0.7, 0.75, 1))
 jk = cyl("g", j["x"], j["zc"], 3.0, my(3.977) - 8, my(3.977), "Y", coll=COL_GHOST)
 bop(jk, cyl("g2", j["x"], j["zc"], 3.25, my(3.977), my(3.977) + 12, "Y", coll=COL_GHOST), "UNION")
 ghost("Plug_jack_AD8232", jk, (0.1, 0.1, 0.1, 1))
-sw = box("g", s["x"] - 6.7, s["x"] + 6.7, y_out - s["panel"] - 12.0, y_out - s["panel"], s["zc"] - 4.4, s["zc"] + 4.4, COL_GHOST)
-ghost("Badan_saklar", sw, (0.1, 0.1, 0.1, 1))
-gl = cyl("g", gy, gz, 9.3, x_out - 0.0, x_pocket_bot + 0.0, "X", coll=COL_GHOST)
-nut = prism("g", hexagon(gy, gz, 24.0, True), x_pocket_bot, x_pocket_bot + 5.5, "X", COL_GHOST)
+sw = box("g", s["x"] - 6.9, s["x"] + 6.9, y_panel_in - s["depth"], y_panel_in, s["zc"] - 4.5, s["zc"] + 4.5, COL_GHOST)
+ghost("Badan_saklar_KCD11", sw, (0.1, 0.1, 0.1, 1))
+gl = cyl("g", gy, gz, 6.25, gx(U), gx(U - 8.0), "X", coll=COL_GHOST)           # ulir PG7 12.5 mm, panjang 8 mm
+nut = prism("g", hexagon(gy, gz, g["nut_af"] - 0.4, True), gx(g["pocket"] - WALL - g["nut_h"]), gx(g["pocket"] - WALL), "X", COL_GHOST)
 bop(gl, nut, "UNION")
-ghost("Gland_PG11_+_mur", gl, (0.2, 0.2, 0.6, 1))
+ghost("Gland_PG7_+_mur", gl, (0.2, 0.2, 0.6, 1))
 
 # ============================================================ WARNA + EKSPOR ==
 for ob, col in ((shell, (0.85, 0.85, 0.88, 1)), (plate, (0.35, 0.37, 0.4, 1))):
@@ -376,7 +421,6 @@ def export_stl(ob, path, rot_x180=False, shift_z=0.0):
 
 export_stl(shell, os.path.join(OUT, "1_Shell_Depan_siap_cetak.stl"), rot_x180=True, shift_z=Z_TOP)       # layar menghadap meja
 export_stl(plate, os.path.join(OUT, "2_BackPlate_siap_cetak.stl"), shift_z=-Z_PLATE0)                     # sisi luar menghadap meja
-# referensi (untuk verifikasi) dalam orientasi rancangan
 chk = os.path.join(OUT, "_ref")
 os.makedirs(chk, exist_ok=True)
 export_stl(shell, os.path.join(chk, "shell_design.stl"))
@@ -387,9 +431,11 @@ for nm, ob in ghosts.items():
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, "ECG_PPG_Cover.blend"))
 
 summary = dict(
-    mount_holes=MOUNT, pcb=PCB, cavity=[2 * CAV_HX, 2 * CAV_HY], outer=[2 * OUT_HX, 2 * OUT_HY],
+    mount_holes=MOUNT, pcb=PCB, cavity=[2 * CAV_HX, 2 * CAV_HY], outer=[2 * OUT_HX, 2 * OUT_HY], plate=[2 * PX, 2 * PY],
     z=dict(plate_bottom=Z_PLATE0, split=Z_SPLIT, front_inner=Z_CAV_TOP, top=Z_TOP, pcb=[Z_PCB0, Z_PCB1], tft=[Z_TFT0, Z_TFT1], glass_front=Z_FRONT),
     micro=MICRO, jack=JACK, usbc=USBC, gland=GLAND, switch=SWITCH, screws=screw_pos, window=[WIN_W, WIN_H, WIN_CX, WIN_CY],
+    belt=dict(slot_w=BELT_SLOT_W, slot_l=BELT_SLOT_L, slot_cx=SLOT_CX, wing=WING),
+    screw=dict(len=SCREW_LEN, boss_top=BOSS_TOP, csk_depth=CSK_DEPTH, plate_t=PLATE_T), ch=CH, out_r=OUT_R, plate_r=PR,
 )
 json.dump(summary, open(os.path.join(OUT, "_ref", "summary.json"), "w"), indent=1)
 print("OK", OUT)
