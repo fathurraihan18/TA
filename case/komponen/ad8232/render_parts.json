@@ -1,0 +1,26 @@
+{
+ "PCB Re1": {
+  "file": "ad8232_0_PCB_Re1.stl",
+  "color": [
+   0.62,
+   0.03,
+   0.05
+  ]
+ },
+ "Dark Chips.002": {
+  "file": "ad8232_1_Dark_Chips_002.stl",
+  "color": [
+   0.03,
+   0.03,
+   0.035
+  ]
+ },
+ "Metal.002": {
+  "file": "ad8232_2_Metal_002.stl",
+  "color": [
+   0.75,
+   0.75,
+   0.78
+  ]
+ }
+}

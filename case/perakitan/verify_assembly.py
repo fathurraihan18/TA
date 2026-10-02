@@ -3,7 +3,7 @@ import sys, os, glob, json, itertools
 import numpy as np, trimesh
 
 CASE = sys.argv[1]
-D = os.path.join(CASE, "_ref", "asm")
+D = sys.argv[2] if len(sys.argv) > 2 else os.path.join(CASE, "_ref", "asm")     # arg2 (opsional): folder STL komponen lain
 shell = trimesh.load(os.path.join(CASE, "_ref", "shell_design.stl"))
 plate = trimesh.load(os.path.join(CASE, "_ref", "plate_design.stl"))
 objs = {}
@@ -13,12 +13,27 @@ for f in sorted(glob.glob(os.path.join(D, "*.stl"))):
 print(len(objs), "objek komponen")
 
 
+def vol_sample(a, b, n=6000):
+    """cadangan untuk mesh tidak kedap (model komponen impor): tebar titik di permukaan a, hitung yang jatuh di dalam b
+    (dan sebaliknya); hasil = perkiraan mm3 = fraksi titik x luas permukaan x 0,5 mm (tebal kulit) -> hanya indikator"""
+    tot = 0.0
+    for x, y in ((a, b), (b, a)):
+        if not y.is_watertight: continue
+        pts = x.sample(n)
+        try: inside = y.contains(pts).mean()
+        except Exception: continue
+        tot += inside * x.area * 0.5
+    return tot
+
+
 def vol(a, b):
     try:
-        r = trimesh.boolean.intersection([a, b], engine="manifold")
-        return abs(r.volume) if r is not None and len(r.faces) else 0.0
+        if a.is_watertight and b.is_watertight:
+            r = trimesh.boolean.intersection([a, b], engine="manifold")
+            return abs(r.volume) if r is not None and len(r.faces) else 0.0
+        return vol_sample(a, b)
     except Exception:
-        return float("nan")
+        return vol_sample(a, b)
 
 
 print("\n=== A. Komponen vs shell dan back plate (harus 0 mm3) ===")
@@ -36,7 +51,7 @@ print("  total tabrakan:", bad)
 
 print("\n=== B. Antar komponen (kelompok berbeda) ===")
 allowed = {frozenset(p) for p in [("kabel_el", "ad8232"), ("ppg", "gland"), ("standoff", "pcb"), ("standoff", "tft"),
-                                  ("esp32", "pcb"), ("sekrup", "plate")]}
+                                  ("esp32", "pcb"), ("sekrup", "plate"), ("ad8232", "pcb")]}
 pairs = {}
 names = list(objs)
 for a, b in itertools.combinations(names, 2):

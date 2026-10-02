@@ -14,6 +14,10 @@ MODES = A[2:] or ["all"]
 os.makedirs(OUT, exist_ok=True)
 S = json.load(open(os.path.join(CASE, "_ref", "summary.json")))
 RES = int(os.environ.get("RES", "1400"))
+REAL = os.environ.get("REAL") == "1"          # REAL=1: pakai model nyata (AD8232 blend, ESP32 STEP, klip PPG + HW-605)
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))          # folder case/
+KOMP = os.path.join(_ROOT, "komponen")
+KLIP = os.path.join(_ROOT, "sensor_ppg", "klip_v2")
 
 bpy.ops.wm.open_mainfile(filepath=os.path.join(CASE, "ECG_PPG_Cover.blend"))
 sc = bpy.context.scene
@@ -153,6 +157,52 @@ C = {
 }
 
 
+_RM = {}
+
+
+def real_mat(color, rough=0.45, metal=0.0):
+    key = (tuple(round(c, 3) for c in color[:3]), rough, metal)
+    if key not in _RM:
+        m = bpy.data.materials.new("r%d" % len(_RM)); m.use_nodes = True
+        b = m.node_tree.nodes["Principled BSDF"]
+        b.inputs["Base Color"].default_value = (*color[:3], 1); b.inputs["Roughness"].default_value = rough; b.inputs["Metallic"].default_value = metal
+        _RM[key] = m
+    return _RM[key]
+
+
+def load_real(path, name, color, xform=None, rough=0.45, metal=0.0):
+    """impor STL (mm), terapkan transformasi pada data mesh, tautkan ke koleksi Rumah."""
+    bpy.ops.wm.stl_import(filepath=path)
+    ob = bpy.context.selected_objects[0]
+    for c in list(ob.users_collection):
+        c.objects.unlink(ob)
+    COL.objects.link(ob)
+    ob.name = name
+    if xform is not None:
+        ob.data.transform(xform)
+    ob.data.materials.clear(); ob.data.materials.append(real_mat(color, rough, metal))
+    for p in ob.data.polygons: p.use_smooth = False
+    return ob
+
+
+def helix_real(name, x, y, z0, z1, od, wire, turns, color):
+    Rm = (od - wire) / 2
+    bm = bmesh.new(); nstep = int(turns * 24); nc = 8; rings = []
+    for i in range(nstep + 1):
+        t = i / nstep; a = 2 * math.pi * turns * t
+        c = Vector((x + Rm * math.cos(a), y + Rm * math.sin(a), z0 + (z1 - z0) * t))
+        tan = Vector((-Rm * math.sin(a) * 2 * math.pi * turns, Rm * math.cos(a) * 2 * math.pi * turns, (z1 - z0))).normalized()
+        nrm = Vector((math.cos(a), math.sin(a), 0)); bn = tan.cross(nrm).normalized(); nrm = bn.cross(tan).normalized()
+        rings.append([bm.verts.new(c + (nrm * math.cos(2 * math.pi * k / nc) + bn * math.sin(2 * math.pi * k / nc)) * (wire / 2)) for k in range(nc)])
+    for a_, b_ in zip(rings[:-1], rings[1:]):
+        for k in range(nc):
+            kk = (k + 1) % nc; bm.faces.new([a_[k], a_[kk], b_[kk], b_[k]])
+    bm.faces.new(rings[0][::-1]); bm.faces.new(rings[-1])
+    ob = _obj(name, bm)
+    ob.data.materials.clear(); ob.data.materials.append(real_mat(color, 0.25, 1.0))
+    return ob
+
+
 def paint(ob, key):
     ob.data.materials.clear(); ob.data.materials.append(C[key])
     for p in ob.data.polygons: p.use_smooth = False
@@ -219,25 +269,42 @@ pcb.append(paint(box("pads_ad", gx(77.597) - 1.27, gx(77.597) + 1.27, gy_(18.923
 pcb.append(paint(box("jst_sw", gx(94.341) - 5.0, gx(91.841) + 5.0, gy_(9.652) - 3.0, gy_(9.652) + 3.0, Z0["pcb"][1], 12.6), "white"))
 group("pcb", 4, pcb)
 
-# --- 5 ESP32 DevKitC V4 (di atas soket)
+# --- 5 ESP32 DevKit (38 pin) (di atas soket)
 ex = gx(27.686)
-esp = [paint(box("esp_pcb", ex - 13.95, ex + 13.95, -28.0, 26.4, 15.1, 16.7), "pcbblack"),
-       paint(box("esp_modul", ex - 9.0, ex + 9.0, 0.9, 26.4, 16.7, 19.8), "steel"),
-       paint(box("esp_ant", ex - 9.0, ex + 9.0, 19.8, 26.4, 19.8, 19.9), "pcbblack"),
-       paint(box("esp_usb", ex - 3.75, ex + 3.75, -30.2, -24.6, 16.5, 19.1), "steel"),
-       paint(box("esp_chip", ex - 2.5, ex + 2.5, -17.5, -12.5, 16.7, 17.6), "pcbblack"),
-       paint(box("esp_btn1", ex - 9.5, ex - 6.5, -22, -19, 16.7, 18.2), "white"),
-       paint(box("esp_btn2", ex + 6.5, ex + 9.5, -22, -19, 16.7, 18.2), "white")]
+if REAL:
+    ej = json.load(open(os.path.join(KOMP, "esp32", "esp32_parts.json")))
+    Tm = Matrix.Translation((ex, 0.13, 15.1 - (-1.5)))        # PCB ESP32 (z -1,5 .. 0,1 pada STEP) dipasang pada z = 15,1
+    esp = [load_real(os.path.join(KOMP, "esp32", v["file"]), "esp_" + k, v["color"], Tm, 0.4, 0.6 if k in ("pin", "perisai") else 0.0) for k, v in ej.items()]
+    # micro-USB (pengganti USB-C pada model STEP), melekat di tepi sisi Bawah
+    esp.append(paint(box("esp_usb", ex - 3.75, ex + 3.75, -29.8, -24.2, 16.6, 19.2), "steel"))
+    esp.append(paint(box("esp_usb_slot", ex - 2.7, ex + 2.7, -29.85, -29.3, 17.4, 18.4), "pcbblack"))
+else:
+    esp = [paint(box("esp_pcb", ex - 13.95, ex + 13.95, -28.0, 26.4, 15.1, 16.7), "pcbblack"),
+           paint(box("esp_modul", ex - 9.0, ex + 9.0, 0.9, 26.4, 16.7, 19.8), "steel"),
+           paint(box("esp_ant", ex - 9.0, ex + 9.0, 19.8, 26.4, 19.8, 19.9), "pcbblack"),
+           paint(box("esp_usb", ex - 3.75, ex + 3.75, -30.2, -24.6, 16.5, 19.1), "steel"),
+           paint(box("esp_chip", ex - 2.5, ex + 2.5, -17.5, -12.5, 16.7, 17.6), "pcbblack"),
+           paint(box("esp_btn1", ex - 9.5, ex - 6.5, -22, -19, 16.7, 18.2), "white"),
+           paint(box("esp_btn2", ex + 6.5, ex + 9.5, -22, -19, 16.7, 18.2), "white")]
 group("esp32", 5, esp)
 
 # --- 6 AD8232 + jack
 ax0, ax1 = gx(78.867), gx(43.307)
 ay0, ay1 = gy_(34.163), gy_(6.2)
-ad = [paint(box("ad_pcb", min(ax0, ax1), max(ax0, ax1), min(ay0, ay1), max(ay0, ay1), 10.4, 12.0), "pcbred2"),
-      paint(box("ad_ic", gx(54) - 2.5, gx(54) + 2.5, gy_(20) - 2.5, gy_(20) + 2.5, 12.0, 12.9), "pcbblack")]
 jxc = jk["x"]
-ad.append(paint(box("jack_body", jxc - 3.0, jxc + 3.0, 14.0, 27.5, 12.0, 18.0), "pcbblack"))
-ad.append(paint(cyl("jack_nose", jxc, jk["zc"], 2.9, 27.5, 29.7, "Y", 24), "pcbblack"))
+if REAL:
+    pj = json.load(open(os.path.join(KOMP, "ad8232", "ad8232_parts.json")))
+    Tad = Matrix.Translation((12.22, -0.79, 10.4 - (-1.57)))
+    cmap = {"PCB Re1": ((0.62, 0.03, 0.05), 0.4, 0.0), "Dark Chips.002": ((0.03, 0.03, 0.035), 0.35, 0.0), "Metal.002": ((0.75, 0.75, 0.78), 0.3, 0.9)}
+    ad = []
+    for pth, v in pj.items():
+        col, rg, mt = cmap.get(v["name"], (v["color"][:3], 0.4, 0.0))
+        ad.append(load_real(os.path.join(KOMP, "ad8232", os.path.basename(pth)), "ad_" + v["name"].replace(" ", "_").replace(".", "_"), col, Tad, rg, mt))
+else:
+    ad = [paint(box("ad_pcb", min(ax0, ax1), max(ax0, ax1), min(ay0, ay1), max(ay0, ay1), 10.4, 12.0), "pcbred2"),
+          paint(box("ad_ic", gx(54) - 2.5, gx(54) + 2.5, gy_(20) - 2.5, gy_(20) + 2.5, 12.0, 12.9), "pcbblack")]
+    ad.append(paint(box("jack_body", jxc - 3.0, jxc + 3.0, 14.0, 27.5, 12.0, 18.0), "pcbblack"))
+    ad.append(paint(cyl("jack_nose", jxc, jk["zc"], 2.9, 27.5, 29.7, "Y", 24), "pcbblack"))
 group("ad8232", 6, ad)
 
 # --- 7 plug jack + kabel elektroda (3 lead)
@@ -278,10 +345,31 @@ pp = [paint(box("ppg_pcb", gx(104.4), gx(98.3), gy_(52.2), gy_(39.4), 6.6, 7.8),
 gyc, gzc = gl["y"], gl["zc"]
 pp.append(paint(seg("ppg_cable1", (gx(101.5), gyc, 12.5), (-52.0, gyc, gzc), 2.0, 14), "black"))
 pp.append(paint(cyl("ppg_cable2", gyc, gzc, 2.0, -75.0, -52.0, "X", 14), "black"))
-pp.append(paint(seg("ppg_cable3", (-75.0, gyc, gzc), (-96.0, gyc - 12.0, gzc + 10.0), 2.0, 14), "black"))
-sx0 = -96.0
-pp.append(paint(rbox("ppg_sensor", sx0 - 11.0, sx0 + 0.5, gyc - 12.0 - 8.0, gyc - 12.0 + 8.0, gzc + 10.0 - 1.0, gzc + 10.0 + 4.0, 1.2), "pcbblack"))
-pp.append(paint(box("ppg_window", sx0 - 6.0, sx0 - 1.0, gyc - 12.0 - 3.0, gyc - 12.0 + 3.0, gzc + 14.0, gzc + 14.4), "red"))
+if not REAL:
+    pp.append(paint(seg("ppg_cable3", (-75.0, gyc, gzc), (-96.0, gyc - 12.0, gzc + 10.0), 2.0, 14), "black"))
+    sx0 = -96.0
+    SENSOR_PT = (sx0 - 3.5, gyc - 12.0, gzc + 14.4)
+    pp.append(paint(rbox("ppg_sensor", sx0 - 11.0, sx0 + 0.5, gyc - 12.0 - 8.0, gyc - 12.0 + 8.0, gzc + 10.0 - 1.0, gzc + 10.0 + 4.0, 1.2), "pcbblack"))
+    pp.append(paint(box("ppg_window", sx0 - 6.0, sx0 - 1.0, gyc - 12.0 - 3.0, gyc - 12.0 + 3.0, gzc + 14.0, gzc + 14.4), "red"))
+else:
+    # sensor = klip jari desain v2 (rahang A/B, tutup C, modul HW-605, pegas, sekrup); kabel masuk dari sisi belakang klip
+    KS = json.load(open(os.path.join(KLIP, "_ref", "summary.json")))
+    Pn = Vector((-100.0, gyc - 20.0, gzc + 6.0))                          # titik leher kabel klip di dunia
+    Tc = Matrix.Translation((Pn.x, Pn.y - KS["XL"], Pn.z - KS["z_ax"])) @ Matrix.Rotation(math.radians(90), 4, "Z")
+    pp.append(paint(seg("ppg_cable3", (-75.0, gyc, gzc), (Pn.x, Pn.y + 16.0, Pn.z), 2.0, 14), "black"))
+    pp.append(paint(seg("ppg_cable4", (Pn.x, Pn.y + 16.0, Pn.z), (Pn.x, Pn.y - 2.0, Pn.z), 2.0, 14), "black"))
+    for k_, col in (("A", (0.66, 0.68, 0.72)), ("B", (0.74, 0.70, 0.60)), ("C", (0.12, 0.30, 0.72))):
+        pp.append(load_real(os.path.join(KLIP, "_ref", f"{k_}_desain.stl"), f"clip_{k_}", col, Tc, 0.5))
+    hj = json.load(open(os.path.join(KOMP, "hw605", "hw605_parts.json")))
+    Tb = Tc @ Matrix.Translation((KS["XS"], 0.0, KS["Z_L"]))
+    for k_, v in hj.items():
+        pp.append(load_real(os.path.join(KOMP, "hw605", v["file"]), f"clip_hw605_{k_}", v["color"], Tb, 0.4, 0.8 if k_ == "pad" else 0.0))
+    spg = helix_real("clip_pegas", KS["seats_x"][0], 0.0, KS["BLK"][0], KS["BLK"][1] + KS["pocket_depth"][0], KS["spring"]["od"], KS["spring"]["wire"], KS["spring"]["n_active"] + 1.5, (0.7, 0.72, 0.75))
+    spg.data.transform(Tc); pp.append(spg)
+    _cl = [o for o in pp if o.name.startswith("clip_A")][0]                # titik acuan callout = pusat kotak pembatas rahang A klip
+    _vs = [_cl.matrix_world @ v_.co for v_ in _cl.data.vertices]
+    SENSOR_PT = tuple((Vector((min(v_[i] for v_ in _vs) for i in range(3))) + Vector((max(v_[i] for v_ in _vs) for i in range(3)))) / 2)
+    pp.append(load_real(os.path.join(KLIP, "_ref", "ref_Sekrup_engsel.stl"), "clip_sekrup", (0.06, 0.06, 0.07), Tc, 0.35, 0.6))
 group("ppg", 10, pp)
 
 # --- 11 saklar KCD11
@@ -323,6 +411,8 @@ group("sekrup", 14, scs)
 
 def export_objects():
     d = os.path.join(CASE, "_ref", "asm"); os.makedirs(d, exist_ok=True)
+    for f_ in os.listdir(d):                      # bersihkan STL lama (nama komponen berbeda antara mode perkiraan dan REAL)
+        if f_.endswith(".stl"): os.remove(os.path.join(d, f_))
     for k, g in GR.items():
         if k in ("shell", "plate"): continue
         for o in g["objs"]:
@@ -353,6 +443,9 @@ COL_FLOOR = bpy.data.collections.new("Lantai"); bpy.context.scene.collection.chi
 
 def add_floor():
     global FLOOR
+    if REAL:                    # klip PPG menggantung di bawah tepi Bawah casing (Y < YB_OUT): lantai akan memotongnya, jadi tanpa lantai
+        FLOOR = None
+        return None
     FLOOR = box("lantai", -6000, 6000, YB_OUT - 3.0, YB_OUT, -6000, 6000)
     COL.objects.unlink(FLOOR); COL_FLOOR.objects.link(FLOOR)
     paint(FLOOR, "floor")
@@ -486,7 +579,7 @@ def vis_anchor(key, f_dir):
             return best_pt
     if key == "ppg":      # arahkan ke badan sensor (bila tampil), bukan kabel; pada denah hanya konektor yang tampil
         vis = [o for o in objs if not o.hide_render]
-        objs = [o for o in vis if o.name == "ppg_sensor"] or vis or objs
+        objs = [o for o in vis if o.name in ("ppg_sensor", "clip_A")] or vis or objs
     cands = []
     rnd = random.Random(7)
     for o in objs:
@@ -538,7 +631,7 @@ def anchors(f_dir, extra=None):
 EXPL_A = {"plate": (0, 0, -78), "sekrup": (0, 0, -105), "tft": (0, 0, 72), "shell": (0, 0, 140),
           "saklar": (0, 0, 140), "gland": (0, 0, 140)}
 EXPL_B = {"esp32": (46, 8, 44), "ad8232": (4, 50, 40), "kabel_el": (4, 50, 40), "boost": (-54, 44, 40),
-          "baterai": (-6, -54, 36), "ppg": (-62, -30, 32)}
+          "baterai": (-6, -54, 36), "ppg": ((-6, -4, 30) if REAL else (-62, -30, 32))}
 DIR_EXP = (-0.42, 0.74, 0.55)
 HIDE_B = ["shell", "tft", "standoff", "saklar", "gland", "plate", "sekrup"]
 
@@ -550,15 +643,17 @@ def png_transparent():
 
 if "all" in MODES or "assembled" in MODES:
     set_offsets({}); remove_floor(); add_floor()
-    sc.render.film_transparent = False
+    if REAL: png_transparent()          # tanpa lantai: latar transparan agar gambar bisa dipotong rapat
+    else: sc.render.film_transparent = False
     look((-0.62, 0.42, 0.66), (-8, 6 + YC, 15), 560, ortho=None, lens=50)
     render(os.path.join(OUT, "render_rakitan_depan.png"), RES, int(RES * 0.78))
     json.dump(project_points({"layar": (S["window"][2] + 25, 15, S["z"]["top"]), "saklar": (swc, HY + 4.2, swz), "kabel_el": (jxc, 50.0, jk["zc"]),
-                              "usbc": (-HX, uc["y"], uc["zc"]), "gland": (gxu(U + 12.0), gyc, gzc), "sensor": (sx0 - 3.5, gyc - 12.0, gzc + 14.4)}),
+                              "usbc": (-HX, uc["y"], uc["zc"]), "gland": (gxu(U + 12.0), gyc, gzc), "sensor": SENSOR_PT}),
               open(os.path.join(OUT, "points_depan.json"), "w"), indent=1)
 if "all" in MODES or "back" in MODES:
     set_offsets({}); remove_floor(); add_floor()
-    sc.render.film_transparent = False
+    if REAL: png_transparent()          # tanpa lantai: latar transparan agar gambar bisa dipotong rapat
+    else: sc.render.film_transparent = False
     look((-0.55, 0.45, -0.7), (-6, 4 + YC, 12), 560, lens=50)
     render(os.path.join(OUT, "render_rakitan_belakang.png"), RES, int(RES * 0.78))
     json.dump(project_points({"slot1": (S["belt"]["slot_cx"], 18.0, S["z"]["plate_bottom"]), "slot2": (-S["belt"]["slot_cx"], -18.0, S["z"]["plate_bottom"]),
@@ -574,7 +669,7 @@ if "all" in MODES or "expB" in MODES:
     remove_floor(); png_transparent()
     hide(HIDE_B, True)
     set_offsets(EXPL_B)
-    f = look(DIR_EXP, (-14, 4 + YC, 22), 1500, ortho=float(os.environ.get("SCB", "330")))
+    f = look(DIR_EXP, ((-34, 4 + YC, 22) if REAL else (-14, 4 + YC, 22)), 1500, ortho=float(os.environ.get("SCB", "330")))
     render(os.path.join(OUT, "render_eksplodeB.png"), int(RES * 1.5), int(RES * 1.2))
     json.dump(anchors(f), open(os.path.join(OUT, "anchors_eksplodeB.json"), "w"), indent=1)
     hide(HIDE_B, False)
@@ -582,7 +677,7 @@ if "all" in MODES or "layout" in MODES:
     remove_floor(); png_transparent()
     set_offsets({})
     hide(["shell", "tft", "standoff", "saklar", "gland", "plate", "sekrup"], True)
-    cable_objs = [o for o in GR["ppg"]["objs"] if o.name in ("ppg_cable1", "ppg_cable2", "ppg_cable3", "ppg_sensor", "ppg_window")]
+    cable_objs = [o for o in GR["ppg"]["objs"] if o.name not in ("ppg_pcb", "ppg_conn")]
     for o in cable_objs: o.hide_render = True
     f = look((0.0, 0.0, 1.0), (0, YC, 10), 900, ortho=125)
     render(os.path.join(OUT, "render_denah.png"), RES, int(RES * 0.62))

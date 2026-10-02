@@ -1,5 +1,7 @@
-"""Susun lembar A3: (1) gambar eksplode bernomor + tabel komponen, (2) penempatan komponen & baterai.
-Jalankan: python susun_perakitan.py <folder_case> <folder_render> <folder_output>
+"""Susun lembar A3: (1) gambar eksplode bernomor + tabel komponen, (2) penempatan komponen & baterai,
+(3) [mode real] komponen elektronik beserta ukuran.
+Jalankan: python susun_perakitan.py <folder_case> <folder_render> <folder_output> [real]
+  real = render memakai model 3D komponen nyata (make_assembly.py dengan REAL=1) -> tambah halaman 3
 """
 import sys, os, json, math
 import numpy as np
@@ -11,7 +13,10 @@ from matplotlib.backends.backend_pdf import PdfPages
 from PIL import Image
 
 CASE, REN, OUTD = sys.argv[1:4]
+REAL = len(sys.argv) > 4 and sys.argv[4] == "real"
 os.makedirs(OUTD, exist_ok=True)
+KOMP_R = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "komponen", "render")     # pratinjau komponen
+ASM_REAL = os.path.join(CASE, "_ref", "asm")                                                              # STL rakitan (REAL)
 S = json.load(open(os.path.join(CASE, "_ref", "summary.json")))
 IT = json.load(open(os.path.join(REN, "items.json")))
 ITEMS, BAT = IT["ITEMS"], IT["BAT"]
@@ -52,6 +57,13 @@ if V3:
     _bom_set(1, f"PETG cetak 3D. {_fm(S['outer'][0])} x {_fm(S['outer'][1])} x 34,4 mm, dinding 3 mm; sisi Bawah diperlebar {_fm(S['bay'])} mm untuk baterai. Jendela layar 79 x 52 mm; lubang micro-USB (Bawah), jack + saklar (Atas), USB-C + gland (Kanan).")
     _bom_set(9, f"3,7 V 2000 mAh, 10 x 34 x 50 mm. Rebah di atas PCB sisi Bawah, TIDAK menumpuk modul (celah 0,6 mm); menjorok {_ov} mm di luar tepi PCB, ditopang 3 rusuk back plate. Kabel merah/hitam ke JST 2-pin.")
     _bom_set(13, f"PETG. {_fm(S['plate'][0])} x {_fm(S['plate'][1])} mm; 4 tiang penyangga PCB; 3 rusuk + 2 stopper penyangga baterai; 2 slot sabuk 6 x 44 mm untuk pinggang atau bahu.")
+if REAL:
+    def _bom_set2(n, nm, desc):
+        i = [k for k, r in enumerate(BOM) if r[0] == n][0]
+        BOM[i] = (n, nm, BOM[i][2], desc)
+    _bom_set2(5, "ESP32 DevKit C V4 (38 pin)", "ESP32-WROOM-32: akuisisi sinyal dan inferensi LightGBM. Papan 54,6 x 28,5 mm, 2 x 19 pin (jarak baris 25,4 mm) menancap 8,2 mm ke soket PCB. Port micro-USB menghadap sisi Bawah. Rincian: halaman 3.")
+    _bom_set2(6, "Modul AD8232 + header 6 pin", "ECG 1-lead, 35,56 x 27,94 mm. Header 6 pin (GND, 3,3V, OUTPUT, LO-, LO+, SDN) ke header PCB; jack TRS 3,5 mm menghadap sisi Atas (pusat 61,3 mm dari tepi Kiri PCB). Rincian: halaman 3.")
+    _bom_set2(10, "Sensor PPG MAX30102 (HW-605) + klip", "Papan 13,5 x 18 mm di klip jari (3 bagian cetak + pegas + baut M3), kabel AWG 4 inti (VIN, SCL, SDA, GND) lewat gland PG7 ke konektor 4-pin di PCB (sisi Kanan). Rincian klip: gambar teknik klip PPG.")
 NAME = {n: nm for n, nm, q, d in BOM}
 
 
@@ -169,18 +181,19 @@ def page1():
     balloons(ax, pa, anchA, ["shell", "tft", "standoff", "pcb", "saklar", "gland", "plate", "sekrup"], dist=15, font=8.5)
     ax.text(10, 276, "A. Perakitan utama", fontsize=8, fontweight="bold")
     # gambar B
-    pb = Panel(ax, os.path.join(REN, "render_eksplodeB.png"), (272, 174, 140, 104))
+    pb = Panel(ax, os.path.join(REN, "render_eksplodeB.png"), (224, 140, 106, 138) if REAL else (272, 174, 140, 104))
     anchB = rj("anchors_eksplodeB.json")
     balloons(ax, pb, anchB, ["pcb", "esp32", "ad8232", "kabel_el", "boost", "baterai", "ppg"], dist=13, font=8.0,
-             manual={"kabel_el": (11, 2), "ad8232": (15, -3), "ppg": (-14, 0)})
-    ax.text(274, 276, "B. Komponen di atas PCB (diangkat)", fontsize=8, fontweight="bold")
+             manual=({"kabel_el": (-15, -6), "ad8232": (15, -3), "ppg": (-14, 0)} if REAL else {"kabel_el": (11, 2), "ad8232": (15, -3), "ppg": (-14, 0)}))
+    ax.text(228 if REAL else 274, 276, "B. Komponen di atas PCB (diangkat)", fontsize=8, fontweight="bold")
     # inset rakitan jadi
-    pf = Panel(ax, os.path.join(REN, "render_rakitan_depan.png"), (272, 104, 140, 66), crop=True, margin=20)
-    ax.text(274, 170, "C. Rakitan jadi", fontsize=8, fontweight="bold")
+    pf = Panel(ax, os.path.join(REN, "render_rakitan_depan.png"), (332, 140, 80, 138) if REAL else (272, 104, 140, 66), crop=True, margin=20)
+    ax.text(334 if REAL else 274, 276 if REAL else 170, "C. Rakitan jadi", fontsize=8, fontweight="bold")
     # tabel
     ax.text(10, 101.5, "DAFTAR KOMPONEN", fontsize=8, fontweight="bold")
     bom_table(ax, 8, 99, [11, 58, 9, 326], BOM)
-    ax.text(8, 12.5, "Warna: jingga/hitam = casing PETG; hijau = PCB utama; merah = TFT/AD8232; biru = powerbank/PPG; kuning = baterai. Angka pada balon = nomor item.",
+    ax.text(8, 12.5, "Warna: jingga/hitam = casing PETG; hijau = PCB utama; merah = TFT/AD8232; biru = powerbank; kuning = baterai; krem/putih = klip PPG. Angka pada balon = nomor item."
+            + ("  ESP32, AD8232, HW-605 dan klip PPG memakai model 3D nyata (ukuran: halaman 3)." if REAL else ""),
             fontsize=5.8, va="center")
     return fig
 
@@ -270,10 +283,11 @@ def page2():
             ax.add_patch(Rectangle((xa_, ya_), xb_ - xa_, yb_ - ya_, fill=False, ec="#1f4e9c", lw=0.7, ls=(0, (3, 1.5)), zorder=8))
         tx_, ty_ = P(46.5, -37.4)
         ax.text(tx_, ty_, "rusuk + stopper back plate (biru putus)\nmenopang bagian yang menjorok " + fm(pcb["y0"] - b["y0"]) + " mm", fontsize=5.6, color="#1f4e9c", ha="right", va="center", zorder=9)
-        lx, ly = P(-30, 13.0)
+        lx, ly = P(-16, -12.0)                                         # di atas label baterai (area kosong), panah ke celah
         ax.text(lx, ly, f"TANPA MENUMPUK: celah {fm(-0.5 - b['y1'])} mm ke tepi Bawah\nmodul AD8232 dan powerbank", fontsize=6.4, color="#1b7a2f", ha="center", va="center", zorder=9,
                 bbox=dict(fc="white", ec="#1b7a2f", lw=0.5, pad=1.2, alpha=0.92))
-        ax.plot([lx, P(-30, b["y1"] + 0.4)[0]], [ly - 4.5, P(-30, b["y1"] + 0.4)[1]], lw=0.6, color="#1b7a2f", zorder=8)
+        ax.plot([lx, P(-16, b["y1"] + 0.4)[0]], [ly + 4.5, P(-16, b["y1"] + 0.4)[1]], lw=0.6, color="#1b7a2f", zorder=8)
+        ax.plot([P(-16, b["y1"] + 0.4)[0]], [P(-16, b["y1"] + 0.4)[1]], marker="o", ms=2.0, color="#1b7a2f", zorder=8)
 
     # ---- B/C. render jadi + label port
     pf = Panel(ax, os.path.join(REN, "render_rakitan_depan.png"), (230, 195, 182, 82), crop=True, margin=22)
@@ -295,7 +309,8 @@ def page2():
     callout(ax, PR["sekrup"], "Sekrup M3 x 8 (4x)", ha="right", at=(262, 178))
     callout(ax, PR["slot1"], "Slot sabuk 6 x 44 (2x)", ha="right", at=(262, 166))
     callout(ax, PR["plate"], "Back plate", ha="right", at=(262, 128))
-    callout(ax, PR["slot2"], "Slot sabuk", at=(346, 116))
+    if not REAL:                       # REAL: slot kedua tertutup klip PPG pada sudut pandang ini
+        callout(ax, PR["slot2"], "Slot sabuk", at=(346, 116))
 
     # ---- D. potongan samping (v2: X = -10 mm; v3: X = -12 mm lewat rusuk penyangga, baterai, header AD8232 dan jack)
     sx0, sy0, k = 20, 20, 2.45
@@ -314,7 +329,11 @@ def page2():
     R(YB_OUT, -26, 31.5, 33.9, "#222222"); R(26, HY_, 31.5, 33.9, "#222222")
     R(pcb["y0"], pcb["y1"], 5.0, 6.6, "#2f9a55")
     R(b["y0"], b["y1"], b["z0"], b["z1"], "#f2c230", z=5)
-    R(-0.5, 27.5, 10.4, 12.0, "#c8326a", z=4)
+    if REAL:                                                            # AD8232 nyata: papan Z 10,4...12,0 (komponen SMD s.d. 12,7); jack TRS Z 11,2...17,0 (X -15,8...-9,8)
+        R(-0.5, 27.4, 10.4, 12.0, "#c8326a", z=4)
+        R(14.7, 27.4, 11.2, 17.0, "#222222", z=5); R(27.4, 29.7, 12.2, 17.0, "#222222", z=5)
+    else:
+        R(-0.5, 27.5, 10.4, 12.0, "#c8326a", z=4)
     if V3:
         R(-0.5, 2.0, 6.6, 10.4, "#222222", z=4)
         C_ = S["cradle"]
@@ -322,12 +341,13 @@ def page2():
         R(C_["y"][0], C_["y"][1], -0.5, C_["top"], "#6f86a8", z=4)                      # rusuk di bawah baterai
     else:
         R(-0.5, 2.0, 6.6, 10.4, "#222222", z=6, alpha=0.55, ec="#c00000", lw=0.9)
-    R(14.0, 27.5, 12.0, 18.0, "#1a1a1a", z=4); R(27.5, 29.7, 12.2, 17.8, "#1a1a1a", z=4)
+    if not REAL:
+        R(14.0, 27.5, 12.0, 18.0, "#1a1a1a", z=4); R(27.5, 29.7, 12.2, 17.8, "#1a1a1a", z=4)
     R(-28.17, 28.17, 26.6, 28.2, "#b0201f"); R(-27.5, 27.5, 28.2, 31.2, "#101820")
     if not V3:
         R(-0.5, b["y1"], 10.4, 12.0, "#ffffff", ec="#c00000", lw=0.8, hatch="////", z=7)
     ax.text(yc((b["y0"] + b["y1"]) / 2 - (0 if V3 else 3)), zc(11.6), "BATERAI 10 x 34 x 50", fontsize=6.5, ha="center", va="center", fontweight="bold", zorder=9)
-    ax.text(yc(17), zc(11.2), "AD8232", fontsize=6, ha="center", va="center", color="white", zorder=9)
+    ax.text(yc(17), zc(11.2), "AD8232", fontsize=6, ha="center", va="center", color="white", zorder=9) if not REAL else ax.text(yc(8), zc(11.6), "AD8232", fontsize=6, ha="center", va="center", color="white", zorder=9)
     ax.text(yc(0), zc(29.7), "PCB TFT + kaca", fontsize=6, ha="center", va="center", color="white", zorder=9)
     ax.text(yc((YB_OUT + HY_) / 2), zc(-2.0), "BACK PLATE", fontsize=6, ha="center", va="center", color="white", zorder=9)
     ax.text(yc(-12 if V3 else -6), zc(5.8), "PCB utama", fontsize=5.6, ha="center", va="center", color="white", zorder=9)
@@ -393,18 +413,115 @@ def page2():
         ax.text(225, 104 - i * 5.2, t, fontsize=6.8 if i else 8.0, fontweight="bold" if i == 0 else "normal", va="center", zorder=7)
     ax.text(225, 104 - len(notes) * 5.2 - 1.0, "TINGGI TIAP LAPISAN (Z, mm, dari ujung ekor baut)", fontsize=7.4, fontweight="bold", va="center")
     zt = [("Back plate", "-3,5 ... -0,5"), ("Ekor baut + mur", "0 ... 5,0"), ("PCB utama", "5,0 ... 6,6"), ("Baterai", "6,6 ... 16,6"),
-          ("AD8232 (jack pusat 15,0)", "10,4 ... 12,0"), ("ESP32 DevKit", "15,1 ... 19,8"), ("PCB TFT", "26,6 ... 28,2"), ("Kaca touch", "28,2 ... 31,2"), ("Pelat depan shell", "31,5 ... 33,9")]
+          (("AD8232 (PCB; jack s.d. 17,0)", "10,4 ... 12,7") if REAL else ("AD8232 (jack pusat 15,0)", "10,4 ... 12,0")),
+          (("ESP32 DevKit C V4 (modul)", "15,1 ... 20,5") if REAL else ("ESP32 DevKit", "15,1 ... 19,8")), ("PCB TFT", "26,6 ... 28,2"), ("Kaca touch", "28,2 ... 31,2"), ("Pelat depan shell", "31,5 ... 33,9")]
     for i, (n_, z_) in enumerate(zt):
         col, row = divmod(i, 5)
         ax.text(225 + col * 95, 104 - len(notes) * 5.2 - 6.5 - row * 4.4, f"{n_}:  {z_}", fontsize=6.8, va="center")
-    ax.text(225, 15.5, "CATATAN: gambar 3D adalah ilustrasi; posisi PPG, kapasitor dan konektor kecil diperkirakan dari foto dan Gerber.", fontsize=5.5, va="center", color="#444444")
+    ax.text(225, 15.5, ("CATATAN: ESP32, AD8232, HW-605 dan klip PPG memakai model 3D nyata (halaman 3); posisi konektor kecil dan kapasitor PCB diperkirakan dari Gerber."
+                        if REAL else "CATATAN: gambar 3D adalah ilustrasi; posisi PPG, kapasitor dan konektor kecil diperkirakan dari foto dan Gerber."), fontsize=5.5, va="center", color="#444444")
+    return fig
+
+
+# =============================================================== HALAMAN 3 (mode real): komponen elektronik
+def page3():
+    fig, ax = new_sheet()
+    ax.text(210, 287.5, "Komponen elektronik yang dipakai - model 3D nyata beserta ukuran (mm)", fontsize=12, fontweight="bold", ha="center", va="center")
+
+    def dim_h(pn, mp, X0, X1, Y, off, text, fs=6.4):
+        (xa, ya), (xb, yb) = pn.pt(*mp(X0, Y)), pn.pt(*mp(X1, Y)); yl = ya + off
+        for xx, yy in ((xa, ya), (xb, yb)): ax.plot([xx, xx], [yy, yl - (0.8 if off < 0 else -0.8)], lw=0.35, color="k", zorder=7)
+        ax.annotate("", xy=(xb, yl), xytext=(xa, yl), arrowprops=dict(arrowstyle="<|-|>", lw=0.5, color="k", mutation_scale=5, shrinkA=0, shrinkB=0), zorder=8)
+        ax.text((xa + xb) / 2, yl + (-0.9 if off < 0 else 0.9), text, fontsize=fs, ha="center", va="top" if off < 0 else "bottom", zorder=9)
+
+    def dim_v(pn, mp, Y0, Y1, X, off, text, fs=6.4):
+        (xa, ya), (xb, yb) = pn.pt(*mp(X, Y0)), pn.pt(*mp(X, Y1)); xl = xa + off
+        for xx, yy in ((xa, ya), (xb, yb)): ax.plot([xx, xl - (0.8 if off < 0 else -0.8)], [yy, yy], lw=0.35, color="k", zorder=7)
+        ax.annotate("", xy=(xl, yb), xytext=(xl, ya), arrowprops=dict(arrowstyle="<|-|>", lw=0.5, color="k", mutation_scale=5, shrinkA=0, shrinkB=0), zorder=8)
+        ax.text(xl + (-0.9 if off < 0 else 0.9), (ya + yb) / 2, text, fontsize=fs, rotation=90, ha="right" if off < 0 else "left", va="center", zorder=9)
+
+    def lab(pn, mp, X, Y, text, dx, dy, ha="left", fs=6.2):
+        callout(ax, pn.pt(*mp(X, Y)), text, dx, dy, ha=ha, fs=fs)
+
+    rows = [
+        dict(name="esp32", no=5, title="5. ESP32 DevKit C V4 (ESP32-WROOM-32, 38 pin)", ortho=80.0, mrg=230,
+             spec=["Mikrokontroler dual-core 240 MHz, Wi-Fi + Bluetooth, flash 4 MB: akuisisi ECG/PPG dan inferensi LightGBM.",
+                   "Papan 54,6 x 28,5 x 1,6 mm; tinggi total 13,7 mm (modul 3,8 mm di atas PCB, pin 8,2 mm di bawah PCB).",
+                   "Header 2 x 19 pin, pitch 2,54 mm, jarak antarbaris 25,4 mm; menancap pada 2 soket female PCB utama.",
+                   "Rakitan: pusat X = +27,7 mm; PCB Z 15,1 ... 16,7; atas modul Z = 20,5 mm; port micro-USB di sisi Bawah",
+                   "   (lubang casing 12,2 x 8,2 mm; plug + overmold harus muat di lubang itu).",
+                   "Model: STEP unggahan pengguna (30 pin, USB-C) diadaptasi menjadi 19 pin per baris + micro-USB"]),
+        dict(name="ad8232", no=6, title="6. Modul AD8232 ECG (SparkFun) + jack 3,5 mm", ortho=60.0, mrg=175,
+             spec=["Front-end ECG 1-lead dengan deteksi elektroda lepas (LO+, LO-); keluaran analog ke ADC ESP32.",
+                   "Papan 35,56 x 27,94 mm; PCB + komponen setebal 2,3 mm; jack TRS 3,5 mm menonjol 2,3 mm di tepi Atas.",
+                   "Header 6 pin: GND, 3,3V, OUTPUT, LO-, LO+, SDN (pitch 2,54 mm); pin dipendekkan sehingga masuk header PCB",
+                   "   3,8 mm saja (Z 6,6 ... 10,4).",
+                   "Rakitan: PCB Z 10,4 ... 12,7; jack pusat Z = 15,0, pusat 61,3 mm dari tepi Kiri PCB; nose jack menembus",
+                   "   dinding Atas (lubang 7,2 mm). Model: Thingiverse #5330841 (.blend unggahan pengguna), satuan ke mm."]),
+        dict(name="hw605", no=10, title="10. Sensor PPG MAX30102 - papan HW-605", ortho=30.0, mrg=205,
+             spec=["Sensor detak jantung dan SpO2: LED merah + inframerah, fotodioda, antarmuka I2C (alamat 0x57), catu 3,3 V.",
+                   "Papan 13,5 x 18,0 x 1,6 mm; tinggi total 3,2 mm; jendela sensor sekitar 5,6 x 3,3 mm di tengah papan.",
+                   "Pad solder: VIN, SCL, SDA, GND dipakai (kabel AWG 4 inti, warna merah/kuning/putih/hitam);",
+                   "   INT, IRD, RD tidak dipakai.",
+                   "Terpasang di klip jari (3 bagian cetak + pegas + baut M3): jendela sensor menghadap bantalan jari.",
+                   "Model: dibuat dari foto dan datasheet (berkas .sldprt tidak terbaca); ukur papan asli lalu sesuaikan."]),
+    ]
+    T = 281.0
+    for r in rows:
+        n = r["name"]
+        ax.plot([8, 412], [T - 0.3, T - 0.3], lw=0.4, color="#999999", zorder=1)
+        ax.text(10, T - 3.6, r["title"], fontsize=8.0, fontweight="bold", va="center")
+        yb = T - 77.5
+        Panel(ax, os.path.join(KOMP_R, f"{n}_iso.png"), (8, yb, 122, 70), crop=True, margin=24)
+        inf = json.load(open(os.path.join(KOMP_R, f"{n}_info.json")))
+        pn = Panel(ax, os.path.join(KOMP_R, f"{n}_top.png"), (132, yb, 122, 70), crop=True, margin=r["mrg"])
+        cx, cy = inf["center"][0], inf["center"][1]; sp = inf["px"][0] / inf["ortho"]
+        mp = lambda X, Y, cx=cx, cy=cy, sp=sp: (inf["px"][0] / 2 + (X - cx) * sp, inf["px"][1] / 2 - (Y - cy) * sp)
+        ax.text(258, T - 10.0, "SPESIFIKASI DAN POSISI PADA RAKITAN", fontsize=7.2, fontweight="bold", va="center")
+        for i_, t_ in enumerate(r["spec"]):
+            ax.text(258, T - 17.0 - i_ * 6.4, t_, fontsize=6.1, va="center", zorder=7)
+        ax.text(133, T - 8.5, "tampak atas", fontsize=6.4, color="#444444", va="center")
+        ax.text(9, T - 8.5, "tampak isometrik", fontsize=6.4, color="#444444", va="center")
+        if n == "esp32":
+            dim_h(pn, mp, -14.25, 14.25, -28.55, -6.0, "28,5")
+            dim_v(pn, mp, -28.55, 26.0, 14.25, 7.0, "54,6")
+            dim_h(pn, mp, -12.7, 12.7, 26.0, 6.0, "25,4 (jarak baris pin)")
+            lab(pn, mp, 0, 22.0, "antena PCB", 17, 4)
+            lab(pn, mp, -6.0, 10.0, "ESP32-WROOM-32 (perisai logam)", -12, 0, ha="right")
+            lab(pn, mp, -8.0, -22.4, "tombol EN dan BOOT", -12, 4, ha="right")
+            lab(pn, mp, 0, -27.0, "micro-USB (sisi Bawah)", 14, -5)
+        elif n == "ad8232":
+            dim_h(pn, mp, -35.42, 0.14, 0.26, -6.0, "35,56")
+            dim_v(pn, mp, 0.26, 28.2, 0.14, 7.0, "27,94")
+            lab(pn, mp, -19.0, 27.8, "jack 3,5 mm (TRS)", 12, 4)
+            lab(pn, mp, -11.2, 16.5, "IC AD8232", 12, -7)
+            lab(pn, mp, -17.5, 1.2, "header 6 pin (pitch 2,54)", 6, -13)
+        else:
+            dim_h(pn, mp, -6.75, 6.75, -9.0, -6.0, "13,5")
+            dim_v(pn, mp, -9.0, 9.0, 7.7, 8.0, "18,0")
+            lab(pn, mp, 0, 0, "jendela sensor (LED + fotodioda)", -24, 14, ha="right")
+            lab(pn, mp, -6.4, 3.0, "pad solder", -14, -5, ha="right")
+        T -= 79.0
+    # --- sumber dan catatan keakuratan
+    ax.add_patch(Rectangle((8, 8), 404, 38, fill=False, lw=0.6, ec="k", zorder=2))
+    notes = [
+        "SUMBER MODEL DAN CATATAN KEAKURATAN",
+        "1. ESP32: STEP unggahan pengguna (esp32-wroom-30pin-c-type) diadaptasi: 19 pin per baris (DevKit C V4 38 pin), konektor USB-C diganti micro-USB, PCB dinaikkan 2,55 mm. Lubang micro-USB v3 = 12,2 x 8,2 mm.",
+        "2. AD8232: model Thingiverse #5330841 (.blend unggahan pengguna): meter diubah ke mm; pin logam dipotong pada Z = 6,6 mm (kedalaman header PCB). Posisi diselaraskan dengan header dan jack di Gerber.",
+        "3. HW-605 (MAX30102): berkas SENSOR_DE_LA_PULSERA.sldprt adalah format tertutup SolidWorks sehingga tidak dapat dibaca; papan dimodelkan ulang dari foto dan datasheet (ketelitian sekitar +-0,3 mm).",
+        "4. Pegas, baut, kabel AWG dan ukuran papan HW-605 pada klip adalah perkiraan; ukur komponen asli (diameter luar pegas, panjang bebas, diameter baut dan kabel) dengan jangka sorong sebelum cetak final.",
+        "5. Gambar 3D adalah ilustrasi untuk dokumentasi dan pemeriksaan kecocokan; tidak menggantikan datasheet resmi.",
+    ]
+    for i, t in enumerate(notes):
+        ax.text(11, 43.0 - i * 6.0, t, fontsize=6.9 if i else 7.8, fontweight="bold" if i == 0 else "normal", va="center", zorder=7)
     return fig
 
 
 if __name__ == "__main__":
-    f1, f2 = page1(), page2()
+    figs = [page1(), page2()] + ([page3()] if REAL else [])
     with PdfPages(os.path.join(OUTD, "Gambar_Perakitan_Komponen_A3.pdf")) as pdf:
-        pdf.savefig(f1, dpi=300); pdf.savefig(f2, dpi=300)
-    f1.savefig(os.path.join(OUTD, "Gambar_Perakitan_Hal1_Eksplode_A3.png"), dpi=200)
-    f2.savefig(os.path.join(OUTD, "Gambar_Perakitan_Hal2_Penempatan_A3.png"), dpi=200)
+        for f in figs: pdf.savefig(f, dpi=300)
+    figs[0].savefig(os.path.join(OUTD, "Gambar_Perakitan_Hal1_Eksplode_A3.png"), dpi=200)
+    figs[1].savefig(os.path.join(OUTD, "Gambar_Perakitan_Hal2_Penempatan_A3.png"), dpi=200)
+    if REAL: figs[2].savefig(os.path.join(OUTD, "Gambar_Perakitan_Hal3_Komponen_A3.png"), dpi=200)
     print("OK")

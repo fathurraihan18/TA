@@ -11,7 +11,9 @@ Dibuat parametrik dengan Blender (`bpy` 5.0.1). Satuan **mm**.
 | `2_BackPlate_siap_cetak.stl` | Back plate, sisi luar menghadap meja |
 | `gambar_teknik/` | **Gambar teknik A3 untuk draf TA** (PDF 2 halaman + PNG) dan skrip pembuatnya |
 | `v3_baterai/` | **v3: casing yang memuat baterai tanpa menumpuk modul** (STL siap cetak, .blend, gambar teknik A3, gambar eksplode + penempatan baterai, pratinjau). Lihat `v3_baterai/README.md` |
-| `perakitan/` | **Gambar eksplode berwarna + daftar komponen + penempatan baterai** (PDF A3 2 halaman, PNG, render) dan skrip pembuatnya |
+| `perakitan/` | Skrip gambar eksplode berwarna + daftar komponen + penempatan baterai (hasil v2 di folder ini: PDF A3 2 halaman; hasil v3 dengan model komponen nyata di `v3_baterai/perakitan/`, 3 halaman) |
+| `komponen/` | Model 3D komponen nyata yang dipakai gambar perakitan (ESP32 DevKit C V4, AD8232, HW-605/MAX30102) + skrip konversi dan render pratinjau |
+| `sensor_ppg/` | **Klip sensor PPG MAX30102 (HW-605) desain ulang**: kabel tidak lepas, pegas berdudukan, nyaman di jari. Lihat `sensor_ppg/README.md` |
 | `make_case.py` | Generator parametrik (semua ukuran di bagian `PARAMETER`) |
 | `verify_case.py` | Verifikasi otomatis |
 | `data/pcb_holes.json` | Lubang bor PCB dari Gerber (untuk uji tabrakan kaki komponen) |
@@ -29,8 +31,9 @@ Sumbu model: **+X = Kiri, +Y = Atas, +Z = Depan**; **Z = 0 = ujung ekor baut bel
 - **Catatan fisik penting**: area PCB yang kosong di sisi Bawah hanya 27,8 mm, sedangkan baterai 34 mm. Baterai **menumpuk 6,1 mm** di atas tepi Bawah modul AD8232 dan powerbank
   (sesuai keputusan pengguna). Digambar rebah penuh (irisan 303 mm3 dengan AD8232, 182 mm3 dengan powerbank, 147 mm3 dengan header AD8232 = diketahui, bukan kesalahan);
   pada rakitan nyata tepi baterai bertumpu di atas modul (Z >= 12,0), baterai miring sekitar 11 derajat, puncaknya sekitar 22,9 mm (celah 3,7 mm ke PCB TFT 26,6). Beri isolasi/busa 1 mm; casing tidak berubah. Ilustrasi PPG, kapasitor, dan konektor kecil adalah perkiraan dari foto dan Gerber.
-- Regenerasi: `python perakitan/make_assembly.py -- <folder case> perakitan/render assembled back expA expB layout` (butuh `bpy`; mode `stl` mengekspor STL per komponen untuk `verify_assembly.py`),
-  lalu `python perakitan/susun_perakitan.py <folder case> perakitan/render perakitan` (butuh matplotlib, pillow).
+- Untuk v3 (`v3_baterai/perakitan/`): komponen memakai **model 3D nyata** (`REAL=1`) dan ada **hal. 3** berisi ESP32, AD8232, HW-605 dengan ukuran dan sumber model.
+- Regenerasi: `python perakitan/make_assembly.py -- <folder case> perakitan/render assembled back expA expB layout` (butuh `bpy`; mode `stl` mengekspor STL per komponen untuk `verify_assembly.py`; tambahkan `REAL=1` untuk model nyata),
+  lalu `python perakitan/susun_perakitan.py <folder case> perakitan/render perakitan [real]` (butuh matplotlib, pillow, trimesh; `real` menambah hal. 3).
 
 ## Ukuran utama
 - Shell **105,0 × 63,5 × 34,4 mm** (+ tonjolan gland 4,8 mm di sisi Kanan); dengan back plate dan sayap: **133,0 × 63,5 × 37,4 mm**.

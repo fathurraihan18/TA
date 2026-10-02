@@ -24,9 +24,9 @@ Koordinat (mm, sumbu model): X -41,5 ... +8,5, Y -35,1 ... -1,1, Z 6,6 ... 16,6.
 | `2_BackPlate_siap_cetak.stl` | Back plate (rusuk dan stopper menghadap atas), sisi luar menghadap meja |
 | `ECG_PPG_Cover.blend` | Model Blender (Referensi_Komponen sudah memuat baterai) |
 | `gambar_teknik/` | Gambar teknik A3 untuk draf TA (2 halaman, PDF + PNG), sudah memuat ukuran baru |
-| `perakitan/` | Gambar eksplode bernomor + daftar komponen, penempatan baterai (denah, tampak jadi, potongan), render |
+| `perakitan/` | Gambar eksplode bernomor + daftar komponen, penempatan komponen dan baterai (denah, tampak jadi, potongan), **komponen elektronik dengan ukuran (hal. 3)**; memakai model 3D nyata ESP32 DevKit C V4, AD8232, HW-605 (MAX30102) + klip PPG v2; PDF A3 3 halaman, PNG, render, `hasil_verifikasi.txt` |
 | `preview/` | Render luar, dalam, penyangga baterai, dan potongan melalui baterai (`9_potongan_baterai_X-12.png`) |
-| `_ref/` | STL desain, `summary.json`, dan STL tiap komponen perakitan untuk uji tabrakan |
+| `_ref/` | STL desain, `summary.json`, dan STL tiap komponen perakitan (model nyata) untuk uji tabrakan |
 
 ## Perakitan
 1. Pasang saklar dan gland ke shell seperti v2.
@@ -40,7 +40,7 @@ Sama seperti v2: layer 0,2 mm, 3 perimeter, infill 20 %. Shell dengan layar di b
 ## Hasil verifikasi otomatis
 `python ../verify_case.py .` : **SEMUA LOLOS**. Mesh rapat, satu badan, tanpa fitur < 0,9 mm, semua lubang diuji posisi dan ukuran, boss sekrup ada, ulir M3 menggigit, shell dan plate tidak saling menembus.
 Khusus v3: baterai tidak menyentuh shell (jarak 0,40 mm) maupun back plate (0,15 mm); celah 0,6 mm ke tepi modul; rusuk tidak menyentuh PCB (0,5 mm); puncak baterai 10 mm di bawah PCB TFT.
-`python ../perakitan/verify_assembly.py .` : irisan baterai dengan AD8232, powerbank, dan header PCB = **0 mm3** (di v2 303 / 182 / 147 mm3). Sisa yang diketahui: ulir sekrup M3 di boss (5,8 mm3 per sekrup, memang mengulir sendiri) dan gland dengan kabel PPG.
+`python ../perakitan/verify_assembly.py .` : irisan baterai dengan AD8232, powerbank, dan header PCB = **0 mm3** (di v2 303 / 182 / 147 mm3). Sisa yang diketahui: ulir sekrup M3 di boss (5,8 mm3 per sekrup, memang mengulir sendiri), gland dengan kabel PPG, serta pin ESP32 dan AD8232 yang menancap ke soket/header PCB (memang bertemu). Dengan model nyata (`perakitan/hasil_verifikasi.txt`) tidak ada komponen yang menabrak shell atau back plate selain sekrup tadi.
 
 ## Yang perlu Anda cek sebelum cetak final
 1. **Colokan micro-USB**: soket ESP32 sekarang 8,3 mm dari muka luar dinding (v2: 1,5 mm), jadi badan konektor (overmold) kabel harus muat melewati lubang 12,2 x 8,2 mm. Cek colokan Anda, atau ubah `MICRO` di `make_case.py`.
@@ -50,5 +50,5 @@ Khusus v3: baterai tidak menyentuh shell (jarak 0,40 mm) maupun back plate (0,15
 
 ## Membuat ulang
 `python ../make_case.py -- . --bay`, lalu `python ../verify_case.py .`, `python ../render_previews.py -- . ext int sec`,
-`python ../perakitan/make_assembly.py -- <case> <case>/perakitan/render assembled back expA expB layout stl` dan `python ../perakitan/susun_perakitan.py <case> <case>/perakitan/render <case>/perakitan`,
+`REAL=1 python ../perakitan/make_assembly.py -- <case> <case>/perakitan/render assembled back expA expB layout stl` (lalu `expB` lagi dengan `SCB=400` agar semua komponen masuk bingkai) dan `python ../perakitan/susun_perakitan.py <case> <case>/perakitan/render <case>/perakitan real`,
 `python ../gambar_teknik/gambar_render.py -- <case> <case>/gambar_teknik/garis` dan `python ../gambar_teknik/gambar_lembar.py <case> <case>/gambar_teknik/garis <case>/preview <case>/gambar_teknik`.

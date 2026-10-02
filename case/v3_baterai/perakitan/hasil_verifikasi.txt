@@ -1,0 +1,22 @@
+Hasil uji tabrakan perakitan v3 dengan model komponen NYATA (python perakitan/verify_assembly.py v3_baterai)
+Catatan:
+ - Mesh impor yang tidak kedap (chip/jack AD8232, pin dan strip ESP32) diuji dengan titik sampel di permukaan; angkanya hanya indikator.
+ - ad8232 x pcb dan esp32 x pcb = pin menancap ke header/soket PCB (memang bertemu). ppg x gland = kabel melewati gland.
+ - Tidak ada pasangan lain (baterai terhadap AD8232/powerbank/ESP32/PCB, ESP32 terhadap TFT/standoff, dll.) yang bersinggungan.
+ - Satu-satunya tabrakan dengan casing adalah ulir sekrup M3 di boss (5,8 mm3 per sekrup; memang mengulir sendiri).
+
+96 objek komponen
+
+=== A. Komponen vs shell dan back plate (harus 0 mm3) ===
+  center_mass = integrated[1:4] / volume
+  center_mass = integrated[1:4] / volume
+  [TABRAK] sekrup__scr_shank0                 vs shell : 5.8 mm3
+  [TABRAK] sekrup__scr_shank1                 vs shell : 5.8 mm3
+  [TABRAK] sekrup__scr_shank2                 vs shell : 5.8 mm3
+  [TABRAK] sekrup__scr_shank3                 vs shell : 5.8 mm3
+  total tabrakan: 4
+
+=== B. Antar komponen (kelompok berbeda) ===
+  ad8232    x pcb            96.5 mm3   -> diizinkan (menyatu/menembus rumah/konektor)
+  esp32     x pcb          1195.1 mm3   -> diizinkan (menyatu/menembus rumah/konektor)
+  gland     x ppg           357.5 mm3   -> diizinkan (menyatu/menembus rumah/konektor)
