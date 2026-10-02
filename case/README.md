@@ -10,6 +10,7 @@ Dibuat parametrik dengan Blender (`bpy` 5.0.1). Satuan **mm**.
 | `1_Shell_Depan_siap_cetak.stl` | Shell, sudah diputar: **layar menghadap meja** |
 | `2_BackPlate_siap_cetak.stl` | Back plate, sisi luar menghadap meja |
 | `gambar_teknik/` | **Gambar teknik A3 untuk draf TA** (PDF 2 halaman + PNG) dan skrip pembuatnya |
+| `perakitan/` | **Gambar eksplode berwarna + daftar komponen + penempatan baterai** (PDF A3 2 halaman, PNG, render) dan skrip pembuatnya |
 | `make_case.py` | Generator parametrik (semua ukuran di bagian `PARAMETER`) |
 | `verify_case.py` | Verifikasi otomatis |
 | `data/pcb_holes.json` | Lubang bor PCB dari Gerber (untuk uji tabrakan kaki komponen) |
@@ -17,6 +18,18 @@ Dibuat parametrik dengan Blender (`bpy` 5.0.1). Satuan **mm**.
 
 Di Blender: **Numpad 7 (Top)** = tampak depan layar seperti foto 1.
 Sumbu model: **+X = Kiri, +Y = Atas, +Z = Depan**; **Z = 0 = ujung ekor baut belakang**; (0,0) = pusat 4 lubang baut M3.
+
+## Gambar perakitan, daftar komponen, dan penempatan baterai (`perakitan/`)
+- `Gambar_Perakitan_Komponen_A3.pdf` (2 halaman, juga PNG per halaman):
+  - **Hal. 1**: tampak eksplode bernomor (A = tumpukan utama; B = komponen di atas PCB diangkat; C = rakitan jadi) + tabel *ITEM / NAMA / JML / KETERANGAN* 14 komponen.
+  - **Hal. 2**: denah penempatan baterai (tampak depan PCB, bersatuan mm), tampak jadi depan/belakang berlabel, potongan samping X = -10 mm dengan tinggi tiap lapisan, dan penjelasan tertulis.
+- Baterai **PALO 103450 Li-ion 3,7 V 2000 mAh (10 x 34 x 50 mm, JST 2-pin)** diletakkan **di sisi Bawah**, rebah di atas PCB, rapat ke dinding Bawah (celah 0,4 mm):
+  X = 7,5 mm dari tepi Kanan PCB s.d. 40,5 mm dari tepi Kiri; Y = -28,4 ... +5,6 mm; Z = 6,6 ... 16,6 mm. Puncak baterai masih 10,0 mm di bawah PCB TFT (Z 26,6).
+- **Catatan fisik penting**: area PCB yang kosong di sisi Bawah hanya 27,8 mm, sedangkan baterai 34 mm. Baterai **menumpuk 6,1 mm** di atas tepi Bawah modul AD8232 dan powerbank
+  (sesuai keputusan pengguna). Digambar rebah penuh (irisan 303 mm3 dengan AD8232, 182 mm3 dengan powerbank, 147 mm3 dengan header AD8232 = diketahui, bukan kesalahan);
+  pada rakitan nyata tepi baterai bertumpu di atas modul (Z >= 12,0), baterai miring sekitar 11 derajat, puncaknya sekitar 22,9 mm (celah 3,7 mm ke PCB TFT 26,6). Beri isolasi/busa 1 mm; casing tidak berubah. Ilustrasi PPG, kapasitor, dan konektor kecil adalah perkiraan dari foto dan Gerber.
+- Regenerasi: `python perakitan/make_assembly.py -- <folder case> perakitan/render assembled back expA expB layout` (butuh `bpy`; mode `stl` mengekspor STL per komponen untuk `verify_assembly.py`),
+  lalu `python perakitan/susun_perakitan.py <folder case> perakitan/render perakitan` (butuh matplotlib, pillow).
 
 ## Ukuran utama
 - Shell **105,0 × 63,5 × 34,4 mm** (+ tonjolan gland 4,8 mm di sisi Kanan); dengan back plate dan sayap: **133,0 × 63,5 × 37,4 mm**.
