@@ -1,0 +1,26 @@
+{
+ "ITEMS": {
+  "shell": 1,
+  "tft": 2,
+  "standoff": 3,
+  "pcb": 4,
+  "esp32": 5,
+  "ad8232": 6,
+  "kabel_el": 7,
+  "boost": 8,
+  "baterai": 9,
+  "ppg": 10,
+  "saklar": 11,
+  "gland": 12,
+  "plate": 13,
+  "sekrup": 14
+ },
+ "BAT": {
+  "x0": -41.5,
+  "x1": 8.5,
+  "y0": -35.1,
+  "y1": -1.1,
+  "z0": 6.6,
+  "z1": 16.6
+ }
+}

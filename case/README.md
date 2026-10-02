@@ -1,4 +1,4 @@
-# Cover alat ECG + PPG (ESP32 + TFT ILI9488 3,5" + PCB custom)  -  v2
+# Cover alat ECG + PPG (ESP32 + TFT ILI9488 3,5" + PCB custom)  -  v2 (+ varian v3 baterai di `v3_baterai/`)
 
 Rumah 2 bagian: **Shell depan** (jendela layar + semua lubang) dan **Back plate** (penutup belakang + 4 tiang penyangga PCB + 2 sayap slot sabuk).
 Dibuat parametrik dengan Blender (`bpy` 5.0.1). Satuan **mm**.
@@ -10,6 +10,7 @@ Dibuat parametrik dengan Blender (`bpy` 5.0.1). Satuan **mm**.
 | `1_Shell_Depan_siap_cetak.stl` | Shell, sudah diputar: **layar menghadap meja** |
 | `2_BackPlate_siap_cetak.stl` | Back plate, sisi luar menghadap meja |
 | `gambar_teknik/` | **Gambar teknik A3 untuk draf TA** (PDF 2 halaman + PNG) dan skrip pembuatnya |
+| `v3_baterai/` | **v3: casing yang memuat baterai tanpa menumpuk modul** (STL siap cetak, .blend, gambar teknik A3, gambar eksplode + penempatan baterai, pratinjau). Lihat `v3_baterai/README.md` |
 | `perakitan/` | **Gambar eksplode berwarna + daftar komponen + penempatan baterai** (PDF A3 2 halaman, PNG, render) dan skrip pembuatnya |
 | `make_case.py` | Generator parametrik (semua ukuran di bagian `PARAMETER`) |
 | `verify_case.py` | Verifikasi otomatis |

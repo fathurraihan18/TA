@@ -15,6 +15,9 @@ os.makedirs(OUTD, exist_ok=True)
 S = json.load(open(os.path.join(CASE, "_ref", "summary.json")))
 IT = json.load(open(os.path.join(REN, "items.json")))
 ITEMS, BAT = IT["ITEMS"], IT["BAT"]
+V3 = bool(S.get("battery"))                                      # v3 = ruang baterai di sisi Bawah, tidak menumpuk
+YB_OUT, YT_OUT = S.get("outer_y", [-S["outer"][1] / 2, S["outer"][1] / 2])
+CAV_YB, CAV_YT = S.get("cavity_y", [-S["cavity"][1] / 2, S["cavity"][1] / 2])
 FS = 6.3
 
 
@@ -38,6 +41,17 @@ BOM = [
     (13, "Back plate + sayap sabuk", 1, "PETG. 133 x 63,5 mm; 4 tiang penyangga PCB; 2 slot sabuk 6 x 44 mm untuk pinggang atau bahu."),
     (14, "Sekrup M3 x 8 flat head", 4, "Mengikat back plate ke boss di dinding Atas/Bawah (mengulir sendiri, tertanam 4,8 mm)."),
 ]
+if V3:
+    def _bom_set(n, desc):
+        i = [k for k, r in enumerate(BOM) if r[0] == n][0]
+        BOM[i] = (BOM[i][0], BOM[i][1], BOM[i][2], desc)
+    def _fm(v):
+        t = f"{v:.2f}".replace(".", ",")
+        return t[:-1] if t.endswith("0") else t
+    _ov = f"{S['pcb']['y0'] - S['battery']['y0']:.1f}".replace(".", ",")
+    _bom_set(1, f"PETG cetak 3D. {_fm(S['outer'][0])} x {_fm(S['outer'][1])} x 34,4 mm, dinding 3 mm; sisi Bawah diperlebar {_fm(S['bay'])} mm untuk baterai. Jendela layar 79 x 52 mm; lubang micro-USB (Bawah), jack + saklar (Atas), USB-C + gland (Kanan).")
+    _bom_set(9, f"3,7 V 2000 mAh, 10 x 34 x 50 mm. Rebah di atas PCB sisi Bawah, TIDAK menumpuk modul (celah 0,6 mm); menjorok {_ov} mm di luar tepi PCB, ditopang 3 rusuk back plate. Kabel merah/hitam ke JST 2-pin.")
+    _bom_set(13, f"PETG. {_fm(S['plate'][0])} x {_fm(S['plate'][1])} mm; 4 tiang penyangga PCB; 3 rusuk + 2 stopper penyangga baterai; 2 slot sabuk 6 x 44 mm untuk pinggang atau bahu.")
 NAME = {n: nm for n, nm, q, d in BOM}
 
 
@@ -189,13 +203,15 @@ def page2():
     W, H = pd.size
     sc_px = W / 125.0
 
-    def M(X, Y): return pd.pt(W / 2 + X * sc_px, H / 2 - Y * sc_px)
+    YCM = (YB_OUT + YT_OUT) / 2                                        # kamera denah berpusat di tengah outline (v3: Y = -3,4)
+
+    def M(X, Y): return pd.pt(W / 2 + X * sc_px, H / 2 - (Y - YCM) * sc_px)
 
     ax.text(rx + 1, 279, "A. DENAH PENEMPATAN (tampak depan PCB; layar TFT, shell, saklar dan gland dilepas)", fontsize=7.5, fontweight="bold", va="center")
     anc = rj("anchors_denah.json")
     balloons(ax, pd, anc, ["pcb", "esp32", "ad8232", "boost", "baterai", "ppg"], dist=11, font=8.0,
-             bounds=(rx + 4, ry + 4, rx + rw - 4, ry + rh - 10), avoid_center=M(0, 0))
-    for (X, Y, t, rot) in ((28, 34.6, "ATAS", 0), (0, -39.0, "BAWAH", 0), (-57.0, 14, "KANAN", 90), (57.0, 0, "KIRI", -90)):
+             bounds=(rx + 4, ry + 4, rx + rw - 4, ry + rh - 10), avoid_center=M(0, 0), manual=({"ppg": (-6.2, -3.6)} if V3 else None))
+    for (X, Y, t, rot) in ((28, 34.6, "ATAS", 0), (0, -49.0 if V3 else -39.0, "BAWAH", 0), (-57.0, 14, "KANAN", 90), (57.0, 0, "KIRI", -90)):
         x_, y_ = M(X, Y)
         ax.text(x_, y_, t, fontsize=7.5, fontweight="bold", color="#1a4fa0", ha="center", va="center", rotation=rot, zorder=8)
     b = BAT
@@ -215,18 +231,49 @@ def page2():
 
     fm = lambda v: f"{v:.1f}".replace(".", ",")
     pcb = S["pcb"]
-    dimh(b["x0"], b["x1"], pcb["y0"], -4.6, fm(b["x1"] - b["x0"]))
-    dimh(pcb["x0"], b["x0"], pcb["y0"], -9.6, fm(b["x0"] - pcb["x0"]))
-    dimh(b["x1"], pcb["x1"], pcb["y0"], -9.6, fm(pcb["x1"] - b["x1"]))
-    dimv(b["y0"], b["y1"], pcb["x0"], -4.6, fm(b["y1"] - b["y0"]))
-    ya, yb = -0.5, b["y1"]
-    xa, xb = max(b["x0"], -48.7), min(b["x1"], 12.7)
-    x0p, y0p = P(xa, ya); x1p, y1p = P(xb, yb)
-    ax.add_patch(Rectangle((x0p, y0p), x1p - x0p, y1p - y0p, fill=False, hatch="////", ec="#c00000", lw=0.8, zorder=8))
-    lx, ly = P(-30, yb + 16)
-    ax.text(lx, ly, f"tumpang tindih {fm(yb - ya)} mm: baterai di atas tepi\nBawah modul AD8232 dan powerbank", fontsize=6.4, color="#c00000", ha="center", va="center", zorder=9,
-            bbox=dict(fc="white", ec="#c00000", lw=0.5, pad=1.2, alpha=0.92))
-    ax.plot([lx, P(-30, ya + 3.0)[0]], [ly - 4.5, P(-30, ya + 3.0)[1]], lw=0.6, color="#c00000", zorder=8)
+    if not V3:
+        dimh(b["x0"], b["x1"], pcb["y0"], -4.6, fm(b["x1"] - b["x0"]))
+        dimh(pcb["x0"], b["x0"], pcb["y0"], -9.6, fm(b["x0"] - pcb["x0"]))
+        dimh(b["x1"], pcb["x1"], pcb["y0"], -9.6, fm(pcb["x1"] - b["x1"]))
+        dimv(b["y0"], b["y1"], pcb["x0"], -4.6, fm(b["y1"] - b["y0"]))
+        ya, yb = -0.5, b["y1"]
+        xa, xb = max(b["x0"], -48.7), min(b["x1"], 12.7)
+        x0p, y0p = P(xa, ya); x1p, y1p = P(xb, yb)
+        ax.add_patch(Rectangle((x0p, y0p), x1p - x0p, y1p - y0p, fill=False, hatch="////", ec="#c00000", lw=0.8, zorder=8))
+        lx, ly = P(-30, yb + 16)
+        ax.text(lx, ly, f"tumpang tindih {fm(yb - ya)} mm: baterai di atas tepi\nBawah modul AD8232 dan powerbank", fontsize=6.4, color="#c00000", ha="center", va="center", zorder=9,
+                bbox=dict(fc="white", ec="#c00000", lw=0.5, pad=1.2, alpha=0.92))
+        ax.plot([lx, P(-30, ya + 3.0)[0]], [ly - 4.5, P(-30, ya + 3.0)[1]], lw=0.6, color="#c00000", zorder=8)
+    else:
+        def dimh3(X0, Y0, X1, Y1, yline, text):             # garis ukur horizontal; garis bantu dari (X0,Y0) dan (X1,Y1) turun ke yline
+            xa_, ya_ = P(X0, Y0); xb_, yb_ = P(X1, Y1); yl = P(0, yline)[1]
+            ax.plot([xa_, xa_], [ya_ - 0.8, yl - 0.8], lw=0.35, color="k", zorder=7)
+            ax.plot([xb_, xb_], [yb_ - 0.8, yl - 0.8], lw=0.35, color="k", zorder=7)
+            ax.annotate("", xy=(xb_, yl), xytext=(xa_, yl), arrowprops=dict(arrowstyle="<|-|>", lw=0.5, color="k", mutation_scale=5, shrinkA=0, shrinkB=0), zorder=8)
+            ax.text((xa_ + xb_) / 2, yl - 0.8, text, fontsize=6.3, ha="center", va="top", zorder=9)
+        y_dim1, y_dim2 = b["y0"] - 4.6, b["y0"] - 9.6
+        dimh3(b["x0"], b["y0"], b["x1"], b["y0"], y_dim1, fm(b["x1"] - b["x0"]))
+        dimh3(pcb["x0"], pcb["y0"], b["x0"], b["y0"], y_dim2, fm(b["x0"] - pcb["x0"]))
+        dimh3(b["x1"], b["y0"], pcb["x1"], pcb["y0"], y_dim2, fm(pcb["x1"] - b["x1"]))
+        dimv(b["y0"], b["y1"], pcb["x0"], -13.0, fm(b["y1"] - b["y0"]))
+        dimv(b["y0"], pcb["y0"], b["x0"], -3.4, fm(pcb["y0"] - b["y0"]))
+        # dinding dalam casing (garis putus) + rusuk/stopper back plate di bawah baterai (garis putus biru)
+        xw0, yw0 = P(-S["cavity"][0] / 2, CAV_YB); xw1, yw1 = P(S["cavity"][0] / 2, CAV_YT)
+        ax.add_patch(Rectangle((xw0, yw0), xw1 - xw0, yw1 - yw0, fill=False, lw=0.6, ec="#555555", ls=(0, (6, 2)), zorder=5))
+        ax.text(xw1 - 1.0, yw0 + 1.8, "dinding dalam casing (diperlebar di Bawah)", fontsize=5.6, color="#555555", ha="right", va="bottom", zorder=9)
+        C_ = S["cradle"]
+        for rx_ in C_["ribs_x"]:
+            xa_, ya_ = P(rx_ - C_["rib_w"] / 2, C_["y"][0]); xb_, yb_ = P(rx_ + C_["rib_w"] / 2, C_["y"][1])
+            ax.add_patch(Rectangle((xa_, ya_), xb_ - xa_, yb_ - ya_, fill=False, ec="#1f4e9c", lw=0.7, ls=(0, (3, 1.5)), zorder=8))
+        for sx_ in (BAT["x0"] - 0.4 - C_["stop_w"], BAT["x1"] + 0.4):
+            xa_, ya_ = P(sx_, C_["stop_y"][0]); xb_, yb_ = P(sx_ + C_["stop_w"], C_["stop_y"][1])
+            ax.add_patch(Rectangle((xa_, ya_), xb_ - xa_, yb_ - ya_, fill=False, ec="#1f4e9c", lw=0.7, ls=(0, (3, 1.5)), zorder=8))
+        tx_, ty_ = P(46.5, -37.4)
+        ax.text(tx_, ty_, "rusuk + stopper back plate (biru putus)\nmenopang bagian yang menjorok " + fm(pcb["y0"] - b["y0"]) + " mm", fontsize=5.6, color="#1f4e9c", ha="right", va="center", zorder=9)
+        lx, ly = P(-30, 13.0)
+        ax.text(lx, ly, f"TANPA MENUMPUK: celah {fm(-0.5 - b['y1'])} mm ke tepi Bawah\nmodul AD8232 dan powerbank", fontsize=6.4, color="#1b7a2f", ha="center", va="center", zorder=9,
+                bbox=dict(fc="white", ec="#1b7a2f", lw=0.5, pad=1.2, alpha=0.92))
+        ax.plot([lx, P(-30, b["y1"] + 0.4)[0]], [ly - 4.5, P(-30, b["y1"] + 0.4)[1]], lw=0.6, color="#1b7a2f", zorder=8)
 
     # ---- B/C. render jadi + label port
     pf = Panel(ax, os.path.join(REN, "render_rakitan_depan.png"), (230, 195, 182, 82), crop=True, margin=22)
@@ -250,33 +297,41 @@ def page2():
     callout(ax, PR["plate"], "Back plate", ha="right", at=(262, 128))
     callout(ax, PR["slot2"], "Slot sabuk", at=(346, 116))
 
-    # ---- D. potongan samping X = -10 mm
+    # ---- D. potongan samping (v2: X = -10 mm; v3: X = -12 mm lewat rusuk penyangga, baterai, header AD8232 dan jack)
     sx0, sy0, k = 20, 20, 2.45
-    kk = k * 0.95
+    kk = k * (0.95 if not V3 else 0.88)
     zc = lambda z: sy0 + (z + 3.5) * kk
-    yc = lambda y: sx0 + (y + 31.75) * kk
-    ax.text(10, 118, "D. POTONGAN SAMPING di X = -10 mm (melalui baterai, header AD8232 dan jack)", fontsize=7.5, fontweight="bold", va="center")
+    yc = lambda y: sx0 + (y - YB_OUT) * kk
+    X_SEC = -12 if V3 else -10
+    ax.text(10, 118, f"D. POTONGAN SAMPING di X = {X_SEC} mm (melalui baterai, " + ("rusuk penyangga, " if V3 else "") + "header AD8232 dan jack)", fontsize=7.5, fontweight="bold", va="center")
 
     def R(y0_, y1_, z0_, z1_, fc, ec="k", lw=0.5, hatch=None, z=3, alpha=1.0):
         ax.add_patch(Rectangle((yc(y0_), zc(z0_)), (y1_ - y0_) * kk, (z1_ - z0_) * kk, fc=fc, ec=ec, lw=lw, hatch=hatch, zorder=z, alpha=alpha))
 
-    HY_, CAVY = 31.75, 28.75
-    R(-HY_, HY_, -3.5, -0.5, "#444444")
-    R(-HY_, -CAVY, -0.5, 33.9, "#e08a2a"); R(CAVY, HY_, -0.5, 33.9, "#e08a2a")
-    R(-HY_, -26, 31.5, 33.9, "#222222"); R(26, HY_, 31.5, 33.9, "#222222")
+    HY_, CAVY = YT_OUT, CAV_YT
+    R(YB_OUT, HY_, -3.5, -0.5, "#444444")
+    R(YB_OUT, CAV_YB, -0.5, 33.9, "#e08a2a"); R(CAVY, HY_, -0.5, 33.9, "#e08a2a")
+    R(YB_OUT, -26, 31.5, 33.9, "#222222"); R(26, HY_, 31.5, 33.9, "#222222")
     R(pcb["y0"], pcb["y1"], 5.0, 6.6, "#2f9a55")
     R(b["y0"], b["y1"], b["z0"], b["z1"], "#f2c230", z=5)
     R(-0.5, 27.5, 10.4, 12.0, "#c8326a", z=4)
-    R(-0.5, 2.0, 6.6, 10.4, "#222222", z=6, alpha=0.55, ec="#c00000", lw=0.9)
+    if V3:
+        R(-0.5, 2.0, 6.6, 10.4, "#222222", z=4)
+        C_ = S["cradle"]
+        R(CAV_YB + 0.2, CAV_YB + 1.4, -0.5, 1.5, "#6f86a8", z=4)                       # rim penengah
+        R(C_["y"][0], C_["y"][1], -0.5, C_["top"], "#6f86a8", z=4)                      # rusuk di bawah baterai
+    else:
+        R(-0.5, 2.0, 6.6, 10.4, "#222222", z=6, alpha=0.55, ec="#c00000", lw=0.9)
     R(14.0, 27.5, 12.0, 18.0, "#1a1a1a", z=4); R(27.5, 29.7, 12.2, 17.8, "#1a1a1a", z=4)
     R(-28.17, 28.17, 26.6, 28.2, "#b0201f"); R(-27.5, 27.5, 28.2, 31.2, "#101820")
-    R(-0.5, b["y1"], 10.4, 12.0, "#ffffff", ec="#c00000", lw=0.8, hatch="////", z=7)
-    ax.text(yc(-14), zc(11.6), "BATERAI 10 x 34 x 50", fontsize=6.5, ha="center", va="center", fontweight="bold", zorder=9)
+    if not V3:
+        R(-0.5, b["y1"], 10.4, 12.0, "#ffffff", ec="#c00000", lw=0.8, hatch="////", z=7)
+    ax.text(yc((b["y0"] + b["y1"]) / 2 - (0 if V3 else 3)), zc(11.6), "BATERAI 10 x 34 x 50", fontsize=6.5, ha="center", va="center", fontweight="bold", zorder=9)
     ax.text(yc(17), zc(11.2), "AD8232", fontsize=6, ha="center", va="center", color="white", zorder=9)
     ax.text(yc(0), zc(29.7), "PCB TFT + kaca", fontsize=6, ha="center", va="center", color="white", zorder=9)
-    ax.text(yc(0), zc(-2.0), "BACK PLATE", fontsize=6, ha="center", va="center", color="white", zorder=9)
-    ax.text(yc(-6), zc(5.8), "PCB utama", fontsize=5.6, ha="center", va="center", color="white", zorder=9)
-    ax.text(yc(-HY_) - 1.5, zc(15), "BAWAH", fontsize=7, rotation=90, ha="right", va="center", fontweight="bold", color="#1a4fa0")
+    ax.text(yc((YB_OUT + HY_) / 2), zc(-2.0), "BACK PLATE", fontsize=6, ha="center", va="center", color="white", zorder=9)
+    ax.text(yc(-12 if V3 else -6), zc(5.8), "PCB utama", fontsize=5.6, ha="center", va="center", color="white", zorder=9)
+    ax.text(yc(YB_OUT) - 1.5, zc(15), "BAWAH", fontsize=7, rotation=90, ha="right", va="center", fontweight="bold", color="#1a4fa0")
     ax.text(yc(HY_) + 1.5, zc(26), "ATAS", fontsize=7, rotation=90, ha="left", va="center", fontweight="bold", color="#1a4fa0")
     ax.text(yc(20), zc(20.5), "jack + plug", fontsize=5.8, ha="center", va="center", zorder=9)
     # garis acuan Z di tepi kanan + dimensi
@@ -288,13 +343,26 @@ def page2():
         ax.text(xpos + 1.3, (zc(z0_) + zc(z1_)) / 2, text, fontsize=6.2, va="center", ha="left", zorder=9)
     zd(6.6, 16.6, xr + 10, "10,0  tinggi baterai")
     zd(16.6, 26.6, xr + 10, "10,0  celah ke PCB TFT")
-    callout(ax, (yc(-CAVY + 0.18), zc(9.0)), f"celah {fm(b['y0'] + CAVY)} mm ke dinding", 9, 14, fs=6.0)
-    ax.text(yc(b["y0"]) + 1, zc(1.2), "Y = " + fm(b["y0"]), fontsize=5.8, zorder=9)
-    ax.text(yc(b["y1"]), zc(1.2), "Y = +" + fm(b["y1"]), fontsize=5.8, ha="center", zorder=9)
+    callout(ax, (yc(CAV_YB + 0.18), zc(9.0)), f"celah {fm(b['y0'] - CAV_YB)} mm ke dinding", 9, 14, fs=6.0)
+    if V3:
+        zl = 20.6                                                       # garis ukur di atas baterai
+        for yy_ in (b["y0"], pcb["y0"]):
+            ax.plot([yc(yy_), yc(yy_)], [zc(16.6 if yy_ == b["y0"] else 6.6), zc(zl + 0.8)], lw=0.35, color="k", dashes=(3, 1.5), zorder=8)
+        ax.annotate("", xy=(yc(pcb["y0"]), zc(zl)), xytext=(yc(b["y0"]), zc(zl)), arrowprops=dict(arrowstyle="<|-|>", lw=0.5, color="k", mutation_scale=5, shrinkA=0, shrinkB=0), zorder=8)
+        ax.text((yc(b["y0"]) + yc(pcb["y0"])) / 2, zc(zl) + 0.9, fm(pcb["y0"] - b["y0"]) + " (menjorok)", fontsize=6.0, ha="center", va="bottom", zorder=9)
+        ax.plot([yc(-0.8), yc(-0.8)], [zc(16.6), zc(zl + 0.8)], lw=0.35, color="k", dashes=(3, 1.5), zorder=8)
+        callout(ax, (yc(-0.8), zc(14.0)), f"celah {fm(-0.5 - b['y1'])} mm (tidak menumpuk)", 9, 11, fs=6.0)
+        callout(ax, (yc(-31.5), zc(2.8)), "rusuk back plate (penopang baterai)", at=(yc(-24.0), zc(1.6)), fs=6.0)
+    if V3:
+        ax.text(yc(b["y0"]) + 1.0, zc(17.7), "Y = " + fm(b["y0"]), fontsize=5.8, ha="left", zorder=9)
+        ax.text(yc(b["y1"]) - 1.0, zc(17.7), "Y = " + fm(b["y1"]), fontsize=5.8, ha="right", zorder=9)
+    else:
+        ax.text(yc(b["y0"]) + 1, zc(1.2), "Y = " + fm(b["y0"]), fontsize=5.8, zorder=9)
+        ax.text(yc(b["y1"]), zc(1.2), "Y = +" + fm(b["y1"]), fontsize=5.8, ha="center", zorder=9)
 
     # ---- penjelasan
     ax.add_patch(Rectangle((222, 12), 190, 98, fill=False, lw=0.6, ec="k", zorder=2))
-    notes = [
+    notes_v2 = [
         "PENJELASAN PENEMPATAN BATERAI (sisi Bawah)",
         "1. Baterai PALO 103450 (3,7 V, 2000 mAh, 10 x 34 x 50 mm) rebah di atas PCB, rapat ke sisi Bawah (celah " + fm(b['y0'] + 28.75) + " mm",
         "    ke dinding). Sisi 50 mm sejajar sumbu Kiri-Kanan; sisi 34 mm sejajar Atas-Bawah.",
@@ -307,6 +375,20 @@ def page2():
         "    Beri isolasi/busa 1 mm antara baterai dan komponen modul.",
         "6. Rumah tidak berubah: rongga dalam 99,0 x 57,5 mm, tinggi dalam 32,0 mm.",
     ]
+    over_ = pcb["y0"] - b["y0"]
+    notes_v3 = [
+        "PENJELASAN PENEMPATAN BATERAI (sisi Bawah) - VERSI v3: TANPA MENUMPUK",
+        "1. Baterai PALO 103450 (3,7 V, 2000 mAh, 10 x 34 x 50 mm) rebah di atas PCB. Sisi 50 mm sejajar Kiri-Kanan, sisi 34 mm Atas-Bawah.",
+        "2. Posisi: " + fm(b['x0'] - pcb['x0']) + " mm dari tepi Kanan PCB s.d. " + fm(pcb['x1'] - b['x1']) + " mm dari tepi Kiri PCB; Y " + fm(b['y0']) + " ... " + fm(b['y1']) + "; Z 6,6 ... 16,6 mm.",
+        "3. Tepi Atas baterai berhenti " + fm(-0.5 - b['y1']) + " mm sebelum tepi Bawah modul AD8232 dan powerbank (Y = -0,5): tidak ada tumpang tindih.",
+        "4. PCB hanya menyediakan 27,8 mm, baterai 34 mm, jadi " + fm(over_) + " mm baterai menjorok keluar tepi Bawah PCB. Rongga casing sisi",
+        "    Bawah diperlebar " + fm(S['bay']) + " mm (dinding dalam " + fm(CAV_YB - pcb['y0']).replace('-', '') + " mm dari tepi PCB). Lubang dan ukuran lain tidak berubah.",
+        "5. Bagian yang menjorok ditopang 3 rusuk dan dijaga 2 stopper di back plate (puncak rusuk 0,15 mm di bawah alas baterai).",
+        "6. Celah baterai: 0,4 mm ke dinding Bawah, 10,0 mm ke PCB TFT (Z 26,6). Saklar (Z 16,5-25,5; X +3) dan jack tidak terganggu.",
+        "7. Kabel baterai (merah +, hitam -) di sisi Kiri baterai ke konektor JST 2-pin di PCB (X +11,7; Y -13,1 / -15,1).",
+        "8. Rekatkan baterai ke PCB dengan double tape tipis; lapisi kapton jika ada pad/jalur terbuka di bawahnya agar tidak korslet.",
+    ]
+    notes = notes_v3 if V3 else notes_v2
     for i, t in enumerate(notes):
         ax.text(225, 104 - i * 5.2, t, fontsize=6.8 if i else 8.0, fontweight="bold" if i == 0 else "normal", va="center", zorder=7)
     ax.text(225, 104 - len(notes) * 5.2 - 1.0, "TINGGI TIAP LAPISAN (Z, mm, dari ujung ekor baut)", fontsize=7.4, fontweight="bold", va="center")

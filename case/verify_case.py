@@ -1,4 +1,4 @@
-"""Verifikasi otomatis cover (v2): mesh rapat, ukuran/posisi lubang, tabrakan komponen, keterjangkauan sekrup, fitur tipis."""
+"""Verifikasi otomatis cover (v2 dan v3 --bay): mesh rapat, ukuran/posisi lubang, tabrakan komponen, keterjangkauan sekrup, fitur tipis."""
 import sys, os, json, glob
 import numpy as np
 import trimesh
@@ -32,8 +32,11 @@ for nm, m in (("shell", shell), ("plate", plate)):
 print("\n=== 2. Probe lubang (titik DI DALAM lubang harus kosong, titik TEPI harus padat) ===")
 tol = 0.2
 m = S["micro"]; j = S["jack"]; u = S["usbc"]; g = S["gland"]; s = S["switch"]; belt = S["belt"]
-cav_hy = S["cavity"][1] / 2; cav_hx = S["cavity"][0] / 2
-out_hy = S["outer"][1] / 2; out_hx = S["outer"][0] / 2
+cav_hx = S["cavity"][0] / 2; out_hx = S["outer"][0] / 2
+cav_yb, cav_yt = S.get("cavity_y", [-S["cavity"][1] / 2, S["cavity"][1] / 2])      # dinding dalam Bawah / Atas
+out_yb, out_yt = S.get("outer_y", [-S["outer"][1] / 2, S["outer"][1] / 2])
+cav_hy = cav_yt; out_hy = out_yt                                                     # sisi ATAS (jack, saklar)
+wall_y = lambda side: cav_yt if side > 0 else cav_yb
 z_top = S["z"]["top"]
 
 
@@ -50,7 +53,7 @@ def probe_rect_y(xcen, zc, w, h, ys):  # lubang menembus sumbu Y (dinding Atas/B
 
 
 ang = np.linspace(0, 2 * np.pi, 12, endpoint=False)
-report("micro-USB (BAWAH) 12.2 x 8.2 mm", probe_rect_y(m["x"], m["zc"], m["w"] + tol, m["h"] + tol, [-cav_hy - 1.5, -cav_hy - 2.8]))
+report("micro-USB (BAWAH) 12.2 x 8.2 mm", probe_rect_y(m["x"], m["zc"], m["w"] + tol, m["h"] + tol, [cav_yb - 1.5, cav_yb - 2.8]))
 r_in, r_out = (j["d"] + tol) / 2 - 0.1, (j["d"] + tol) / 2 + 0.25
 ins = [(j["x"] + r_in * np.cos(a), y, j["zc"] + r_in * np.sin(a)) for a in ang for y in (cav_hy + 1.0, cav_hy + 2.5)]
 outs = [(j["x"] + r_out * np.cos(a), y, j["zc"] + r_out * np.sin(a)) for a in ang for y in (cav_hy + 1.0, cav_hy + 2.5)]
@@ -80,8 +83,9 @@ report("jendela layar 79 x 52 mm", all(not solid(shell, p) for p in pin) and all
 ok_slot = True
 for sgn in (1, -1):
     cx = sgn * belt["slot_cx"]
-    ins = [(cx + dx, dy, -2.0) for dx in (-2.5, 0, 2.5) for dy in (-belt["slot_l"] / 2 + 3.2, 0, belt["slot_l"] / 2 - 3.2)]
-    outs = [(cx + sgn_ * (belt["slot_w"] / 2 + 0.4), 0, -2.0) for sgn_ in (-1, 1)] + [(cx, sgn_ * (belt["slot_l"] / 2 + 0.4), -2.0) for sgn_ in (-1, 1)]
+    ocy = (out_yb + out_yt) / 2                                   # slot dipusatkan pada tengah outline (v3: tidak di Y=0)
+    ins = [(cx + dx, ocy + dy, -2.0) for dx in (-2.5, 0, 2.5) for dy in (-belt["slot_l"] / 2 + 3.2, 0, belt["slot_l"] / 2 - 3.2)]
+    outs = [(cx + sgn_ * (belt["slot_w"] / 2 + 0.4), ocy, -2.0) for sgn_ in (-1, 1)] + [(cx, ocy + sgn_ * (belt["slot_l"] / 2 + 0.4), -2.0) for sgn_ in (-1, 1)]
     ok_slot &= all(not solid(plate, p) for p in ins) and all(solid(plate, p) for p in outs)
 report(f"2 slot sabuk {belt['slot_w']:.0f} x {belt['slot_l']:.0f} mm di sayap (X=+-{belt['slot_cx']:.1f})", ok_slot)
 
@@ -96,7 +100,7 @@ for (px, py) in S["screws"]:
     top_axis = (px, py, S["screw"]["boss_top"] - 0.3)
     ok_boss &= solid(shell, mid_block) and all(solid(shell, p_) for p_ in ring) and (not solid(shell, axis)) and (not solid(shell, top_axis))
     # boss harus menyatu dengan dinding: titik antara boss dan dinding padat
-    ok_boss &= solid(shell, (px, side * (cav_hy + 0.2), zmid)) and solid(shell, (px, side * (cav_hy - 5.0), zmid))
+    ok_boss &= solid(shell, (px, wall_y(side) + side * 0.2, zmid)) and solid(shell, (px, wall_y(side) - side * 5.0, zmid))
 report("4 boss sekrup ada (padat), menempel di dinding, pilot Ø2.7 terbuka", ok_boss)
 
 # boss tidak boleh berada di bawah kaki komponen (lubang bor PCB) -> jarak >= 1.5 mm dari tepi boss
@@ -106,7 +110,7 @@ ok_lead = True; min_gap = 99
 for (px, py) in S["screws"]:
     side = 1 if py > 0 else -1
     bx0, bx1 = px - 5.0, px + 5.0
-    by0, by1 = sorted([side * cav_hy + side * 0.3, side * cav_hy - side * 6.0])
+    by0, by1 = sorted([wall_y(side) + side * 0.3, wall_y(side) - side * 6.0])
     for h in holes:
         hx, hy = -(h["xg"] - XH_), -(h["yg"] - YH_)
         dx = max(bx0 - hx, 0, hx - bx1); dy = max(by0 - hy, 0, hy - by1)
@@ -164,7 +168,7 @@ gap = tft.bounds[0][2] - sw.bounds[1][2]
 report("badan saklar tidak menyentuh PCB TFT", gap >= 0.8, f"(celah vertikal {gap:.2f} mm)")
 
 print("\n=== 6. Fitur tipis (< 0.9 mm tidak akan tercetak dengan nozzle 0.4) ===")
-for nm, mesh, zs in (("shell", shell, np.arange(-0.4, 33.9, 0.25)), ("plate", plate, np.arange(-3.4, 5.0, 0.25))):
+for nm, mesh, zs in (("shell", shell, np.arange(-0.4, 33.9, 0.25)), ("plate", plate, np.arange(-3.4, 11.8, 0.25))):
     found = []
     for z in zs:
         sec = mesh.section(plane_origin=[0, 0, z], plane_normal=[0, 0, 1])
@@ -178,6 +182,32 @@ for nm, mesh, zs in (("shell", shell, np.arange(-0.4, 33.9, 0.25)), ("plate", pl
                 c = gm.centroid.coords[0]
                 found.append((round(z, 2), round(gm.area, 2), np.round(trimesh.transform_points([[c[0], c[1], 0]], T)[0][:2], 1).tolist()))
     report(f"{nm}: tidak ada fitur tipis", len(found) == 0, f"({len(found)} potongan)" + (f" contoh {found[:3]}" if found else ""))
+
+if S.get("battery"):
+    print("\n=== 6b. Ruang baterai (v3): tanpa menumpuk, penyangga, jarak bebas ===")
+    B = S["battery"]; C = S["cradle"]; pcb = S["pcb"]
+    bat = trimesh.load(os.path.join(R, "ref_Baterai_PALO103450.stl"))
+    d_sh = closest_point(shell, bat.sample(4000))[1].min()
+    d_pl = closest_point(plate, bat.sample(4000))[1].min()
+    report("baterai 10 x 34 x 50 muat di rongga tanpa menyentuh shell", d_sh >= 0.35, f"(jarak min {d_sh:.2f} mm)")
+    report("baterai tidak menyentuh back plate (rusuk + stopper)", d_pl >= 0.1, f"(jarak min {d_pl:.2f} mm)")
+    report("tepi Atas baterai berhenti sebelum tepi Bawah modul AD8232/powerbank (Y=-0.5)", B["y1"] <= -0.5 - 0.5, f"(celah {-0.5 - B['y1']:.2f} mm)")
+    report("baterai 34 mm: dinding dalam Bawah ke tepi Bawah baterai", abs((B["y0"] - S["cavity_y"][0])) >= 0.35, f"(celah {B['y0'] - S['cavity_y'][0]:.2f} mm)")
+    over = pcb["y0"] - B["y0"]
+    print(f"      baterai menjorok {over:.2f} mm melewati tepi Bawah PCB (tepi PCB Y={pcb['y0']:.2f}); tepi dalam dinding Bawah Y={S['cavity_y'][0]:.2f}")
+    ok_rib = True
+    for rx_ in C["ribs_x"]:
+        for yy in (C["y"][0] + 0.5, (C["y"][0] + C["y"][1]) / 2, C["y"][1] - 0.2):
+            ok_rib &= solid(plate, (rx_, yy, C["top"] - 0.3)) and (not solid(plate, (rx_, yy, C["top"] + 0.3)))
+    report(f"{len(C['ribs_x'])} rusuk penyangga baterai padat dan berakhir tepat di bawah alas baterai", ok_rib, f"(puncak Z={C['top']:.2f}, alas baterai Z={B['z0']:.2f})")
+    ok_stop = all(solid(plate, ((a + b) / 2, (C["stop_y"][0] + C["stop_y"][1]) / 2, B["z0"] + 2.0)) for a, b in
+                  ((B["x0"] - 0.4 - C["stop_w"], B["x0"] - 0.4), (B["x1"] + 0.4, B["x1"] + 0.4 + C["stop_w"])))
+    report("2 stopper ujung baterai ada, di luar badan baterai", ok_stop)
+    pcbm = trimesh.load(os.path.join(R, "ref_PCB_hijau.stl"))
+    d_rib = closest_point(pcbm, np.array([[rx_, C["y"][1], C["top"]] for rx_ in C["ribs_x"]]))[1].min()
+    report("rusuk tidak menyentuh PCB utama", d_rib >= 0.3, f"(jarak {d_rib:.2f} mm)")
+    ok_bar = (B["z1"] <= S["z"]["tft"][0] - 5.0)
+    report("puncak baterai (datar) >= 5 mm di bawah PCB TFT, ruang saklar/kabel aman", ok_bar, f"(puncak Z={B['z1']:.1f}, PCB TFT Z={S['z']['tft'][0]:.1f})")
 
 print("\n=== 7. Estimasi massa (PETG 1.27 g/cm3, 3 perimeter + infill 20 % ~ 55 % volume) ===")
 for nm, mesh in (("shell", shell), ("plate", plate)):

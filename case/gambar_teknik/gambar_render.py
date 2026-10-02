@@ -4,7 +4,10 @@ Jalankan: python gambar_render.py <folder_blend> <folder_output>
 import bpy, math, os, sys, json
 from mathutils import Vector, Matrix
 
-BLEND = os.path.join(sys.argv[sys.argv.index("--") + 1], "ECG_PPG_Cover.blend")
+CASE_DIR = sys.argv[sys.argv.index("--") + 1]
+BLEND = os.path.join(CASE_DIR, "ECG_PPG_Cover.blend")
+_S = json.load(open(os.path.join(CASE_DIR, "_ref", "summary.json")))
+YC = sum(_S["outer_y"]) / 2 if "outer_y" in _S else 0.0       # pusat outline sumbu Y (v3: rongga Bawah diperlebar -> -3,4)
 OUT = sys.argv[sys.argv.index("--") + 2]
 os.makedirs(OUT, exist_ok=True)
 PX = 12  # piksel per mm
@@ -54,12 +57,12 @@ cam.data.clip_start, cam.data.clip_end = 1, 2000
 
 # (nama, arah kamera ke objek f, up, jendela (w,h) mm, pusat jendela dalam koordinat model)
 VIEWS = {
-    "depan":   dict(f=(0, 0, -1), up=(0, 1, 0), win=(140, 76), ctr=(0, 0, 15.2)),
-    "belakang": dict(f=(0, 0, 1), up=(0, 1, 0), win=(140, 76), ctr=(0, 0, 15.2)),
+    "depan":   dict(f=(0, 0, -1), up=(0, 1, 0), win=(140, 76), ctr=(0, YC, 15.2)),
+    "belakang": dict(f=(0, 0, 1), up=(0, 1, 0), win=(140, 76), ctr=(0, YC, 15.2)),
     "atas":    dict(f=(0, -1, 0), up=(0, 0, -1), win=(140, 48), ctr=(0, 0, 15.2)),
     "bawah":   dict(f=(0, 1, 0), up=(0, 0, 1), win=(140, 48), ctr=(0, 0, 15.2)),
-    "kiri":    dict(f=(-1, 0, 0), up=(0, 1, 0), win=(48, 76), ctr=(0, 0, 15.2)),
-    "kanan":   dict(f=(1, 0, 0), up=(0, 1, 0), win=(48, 76), ctr=(0, 0, 15.2)),
+    "kiri":    dict(f=(-1, 0, 0), up=(0, 1, 0), win=(48, 76), ctr=(0, YC, 15.2)),
+    "kanan":   dict(f=(1, 0, 0), up=(0, 1, 0), win=(48, 76), ctr=(0, YC, 15.2)),
 }
 
 for name, v in VIEWS.items():

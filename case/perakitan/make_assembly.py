@@ -171,7 +171,9 @@ GR = {}        # key -> dict(item, empty, objs)
 Z0 = S["z"]
 PCB = S["pcb"]
 mc, jk, uc, gl, sw = S["micro"], S["jack"], S["usbc"], S["gland"], S["switch"]
-HX, HY = S["outer"][0] / 2, S["outer"][1] / 2
+HX = S["outer"][0] / 2
+YB_OUT, HY = S.get("outer_y", [-S["outer"][1] / 2, S["outer"][1] / 2])      # muka luar dinding Bawah / Atas (HY = Atas)
+YC = (YB_OUT + HY) / 2                                                      # pusat outline di sumbu Y (v3: -3,4)
 
 
 def group(key, item, objs):
@@ -257,7 +259,9 @@ bo = [paint(box("bo_pcb", min(bx0, bx1), max(bx0, bx1), min(by0, by1), max(by0, 
 group("boost", 8, bo)
 
 # --- 9 baterai Li-ion 103450 (10x34x50) rapat sisi Bawah; menumpuk +-6 mm di tepi AD8232 (konfirmasi pengguna)
-BAT = dict(x0=-41.5, x1=8.5, y0=-28.4, y1=5.6, z0=6.6, z1=16.6)
+BAT = dict(x0=-41.5, x1=8.5, y0=-28.4, y1=5.6, z0=6.6, z1=16.6)      # v2: menumpuk 6,1 mm di tepi AD8232
+if S.get("battery"):                                                       # v3: tidak menumpuk (dari summary.json)
+    BAT = {k: S["battery"][k] for k in ("x0", "x1", "y0", "y1", "z0", "z1")}
 S_BAT = BAT
 ba = [paint(rbox("bat", BAT["x0"], BAT["x1"], BAT["y0"], BAT["y1"], BAT["z0"], BAT["z1"], 3.0), "gold"),
       paint(box("bat_label", BAT["x0"] + 4, BAT["x1"] - 4, BAT["y0"] + 4, BAT["y1"] - 4, BAT["z1"], BAT["z1"] + 0.12), "label"),
@@ -349,7 +353,7 @@ COL_FLOOR = bpy.data.collections.new("Lantai"); bpy.context.scene.collection.chi
 
 def add_floor():
     global FLOOR
-    FLOOR = box("lantai", -6000, 6000, -HY - 3.0, -HY, -6000, 6000)
+    FLOOR = box("lantai", -6000, 6000, YB_OUT - 3.0, YB_OUT, -6000, 6000)
     COL.objects.unlink(FLOOR); COL_FLOOR.objects.link(FLOOR)
     paint(FLOOR, "floor")
     return FLOOR
@@ -480,8 +484,9 @@ def vis_anchor(key, f_dir):
                     best_sc, best_pt = sc_, (co.x, co.y)
         if best_pt is not None:
             return best_pt
-    if key == "ppg":      # arahkan ke badan sensor, bukan kabel
-        objs = [o for o in objs if o.name == "ppg_sensor"] or objs
+    if key == "ppg":      # arahkan ke badan sensor (bila tampil), bukan kabel; pada denah hanya konektor yang tampil
+        vis = [o for o in objs if not o.hide_render]
+        objs = [o for o in vis if o.name == "ppg_sensor"] or vis or objs
     cands = []
     rnd = random.Random(7)
     for o in objs:
@@ -546,7 +551,7 @@ def png_transparent():
 if "all" in MODES or "assembled" in MODES:
     set_offsets({}); remove_floor(); add_floor()
     sc.render.film_transparent = False
-    look((-0.62, 0.42, 0.66), (-8, 6, 15), 560, ortho=None, lens=50)
+    look((-0.62, 0.42, 0.66), (-8, 6 + YC, 15), 560, ortho=None, lens=50)
     render(os.path.join(OUT, "render_rakitan_depan.png"), RES, int(RES * 0.78))
     json.dump(project_points({"layar": (S["window"][2] + 25, 15, S["z"]["top"]), "saklar": (swc, HY + 4.2, swz), "kabel_el": (jxc, 50.0, jk["zc"]),
                               "usbc": (-HX, uc["y"], uc["zc"]), "gland": (gxu(U + 12.0), gyc, gzc), "sensor": (sx0 - 3.5, gyc - 12.0, gzc + 14.4)}),
@@ -554,7 +559,7 @@ if "all" in MODES or "assembled" in MODES:
 if "all" in MODES or "back" in MODES:
     set_offsets({}); remove_floor(); add_floor()
     sc.render.film_transparent = False
-    look((-0.55, 0.45, -0.7), (-6, 4, 12), 560, lens=50)
+    look((-0.55, 0.45, -0.7), (-6, 4 + YC, 12), 560, lens=50)
     render(os.path.join(OUT, "render_rakitan_belakang.png"), RES, int(RES * 0.78))
     json.dump(project_points({"slot1": (S["belt"]["slot_cx"], 18.0, S["z"]["plate_bottom"]), "slot2": (-S["belt"]["slot_cx"], -18.0, S["z"]["plate_bottom"]),
                               "sekrup": (S["screws"][0][0], S["screws"][0][1], S["z"]["plate_bottom"]), "plate": (-10.0, -12.0, S["z"]["plate_bottom"])}),
@@ -562,14 +567,14 @@ if "all" in MODES or "back" in MODES:
 if "all" in MODES or "expA" in MODES:
     remove_floor(); png_transparent()
     set_offsets(EXPL_A)
-    f = look(DIR_EXP, (-6, 0, 28), 1500, ortho=float(os.environ.get("SCA", "330")))
+    f = look(DIR_EXP, (-6, YC, 28), 1500, ortho=float(os.environ.get("SCA", "330")))
     render(os.path.join(OUT, "render_eksplodeA.png"), int(RES * 1.5), int(RES * 1.5))
     json.dump(anchors(f), open(os.path.join(OUT, "anchors_eksplodeA.json"), "w"), indent=1)
 if "all" in MODES or "expB" in MODES:
     remove_floor(); png_transparent()
     hide(HIDE_B, True)
     set_offsets(EXPL_B)
-    f = look(DIR_EXP, (-14, 4, 22), 1500, ortho=float(os.environ.get("SCB", "330")))
+    f = look(DIR_EXP, (-14, 4 + YC, 22), 1500, ortho=float(os.environ.get("SCB", "330")))
     render(os.path.join(OUT, "render_eksplodeB.png"), int(RES * 1.5), int(RES * 1.2))
     json.dump(anchors(f), open(os.path.join(OUT, "anchors_eksplodeB.json"), "w"), indent=1)
     hide(HIDE_B, False)
@@ -579,7 +584,7 @@ if "all" in MODES or "layout" in MODES:
     hide(["shell", "tft", "standoff", "saklar", "gland", "plate", "sekrup"], True)
     cable_objs = [o for o in GR["ppg"]["objs"] if o.name in ("ppg_cable1", "ppg_cable2", "ppg_cable3", "ppg_sensor", "ppg_window")]
     for o in cable_objs: o.hide_render = True
-    f = look((0.0, 0.0, 1.0), (0, 0, 10), 900, ortho=125)
+    f = look((0.0, 0.0, 1.0), (0, YC, 10), 900, ortho=125)
     render(os.path.join(OUT, "render_denah.png"), RES, int(RES * 0.62))
     json.dump(anchors(f), open(os.path.join(OUT, "anchors_denah.json"), "w"), indent=1)
     hide(["shell", "tft", "standoff", "saklar", "gland", "plate", "sekrup"], False)

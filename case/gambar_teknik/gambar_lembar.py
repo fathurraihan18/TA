@@ -14,7 +14,10 @@ CASE, LINES, PREV, OUTD = sys.argv[1:5]
 os.makedirs(OUTD, exist_ok=True)
 S = json.load(open(os.path.join(CASE, "_ref", "summary.json")))
 
-HX, HY = S["outer"][0] / 2, S["outer"][1] / 2          # 52.5, 31.75
+HX = S["outer"][0] / 2                                  # 52.5
+YB, HY = S.get("outer_y", [-S["outer"][1] / 2, S["outer"][1] / 2])   # muka luar Bawah / Atas (v2: -31,75 / 31,75; v3: -38,5 / 31,75)
+YC = (YB + HY) / 2; HH = (HY - YB) / 2                  # pusat dan setengah tinggi outline sumbu Y
+V3 = bool(S.get("battery"))
 PX = S["plate"][0] / 2                                  # 66.5
 ZB, ZS, ZT = S["z"]["plate_bottom"], S["z"]["split"], S["z"]["top"]   # -3.5, -0.5, 33.9
 DEPTH = ZT - ZB
@@ -27,6 +30,11 @@ LW = 0.35
 
 
 def f1(v): return f"{abs(v):.1f}".replace(".", ",")
+
+
+def f1h(v):                         # 1-2 desimal (70,25 tidak dibulatkan ke 70,2)
+    t = f"{abs(v):.2f}".replace(".", ",")
+    return t[:-1] if t.endswith("0") else t
 
 
 # ---------------------------------------------------------------- tampak
@@ -52,11 +60,11 @@ class View:
 
 def mk_views(cy_front):
     V = {}
-    V["depan"] = View("depan", 200, cy_front, (140, 76), lambda X, Y, Z: (X, Y), (0, 0))
-    V["atas"] = View("atas", 200, cy_front + 38 + 6 + 24, (140, 48), lambda X, Y, Z: (X, -Z), (0, -ZC))
-    V["bawah"] = View("bawah", 200, cy_front - 38 - 28 - 24, (140, 48), lambda X, Y, Z: (X, Z), (0, ZC))
-    V["kanan"] = View("kanan", 92, cy_front, (48, 76), lambda X, Y, Z: (Z, Y), (ZC, 0))
-    V["kiri"] = View("kiri", 308, cy_front, (48, 76), lambda X, Y, Z: (-Z, Y), (-ZC, 0))
+    V["depan"] = View("depan", 200, cy_front, (140, 76), lambda X, Y, Z: (X, Y), (0, YC))
+    V["atas"] = View("atas", 200, cy_front + HH + 36.25, (140, 48), lambda X, Y, Z: (X, -Z), (0, -ZC))
+    V["bawah"] = View("bawah", 200, cy_front - HH - 58.25, (140, 48), lambda X, Y, Z: (X, Z), (0, ZC))
+    V["kanan"] = View("kanan", 92, cy_front, (48, 76), lambda X, Y, Z: (Z, Y), (ZC, YC))
+    V["kiri"] = View("kiri", 308, cy_front, (48, 76), lambda X, Y, Z: (-Z, Y), (-ZC, YC))
     return V
 
 
@@ -137,7 +145,7 @@ def title_block(ax, page, of, subtitle):
     ax.text(x0 + 3, y0 + 39, "GAMBAR TEKNIK: COVER ALAT ECG + PPG", fontsize=9.5, fontweight="bold", va="center")
     ax.text(x0 + 3, y0 + 36, "", fontsize=1)
     ax.text(x0 + 3, y0 + 27.5, "Tugas Akhir: Implementasi LightGBM ke ESP32 berbasis sinyal ECG dan PPG", fontsize=6.6, va="center")
-    ax.text(x0 + 3, y0 + 16.5, f"{subtitle}", fontsize=6.6, va="center")
+    ax.text(x0 + 3, y0 + 16.5, f"{subtitle}" + ("  [v3: ruang baterai]" if V3 else ""), fontsize=6.6, va="center")
     ax.text(x0 + 3, y0 + 5.5, "Satuan: mm   |   Skala 1:1   |   Proyeksi sudut ketiga", fontsize=6.6, va="center")
     ax.text(x0 + 101, y0 + 16.5, "Bahan: PETG (cetak 3D FDM)", fontsize=6.6, va="center")
     ax.text(x0 + 101, y0 + 5.5, f"Halaman {page}/{of}   |   02-10-2026", fontsize=6.6, va="center")
@@ -147,7 +155,7 @@ def title_block(ax, page, of, subtitle):
 # =============================================================== HALAMAN 1
 def page1():
     fig, ax = new_sheet()
-    V = mk_views(168)
+    V = mk_views(166 if V3 else 168)
     for v in V.values():
         v.draw(ax)
     D, K, A, B, L, R = V["depan"], V["kanan"], V["atas"], V["bawah"], V["kiri"], V["kanan"]
@@ -156,13 +164,13 @@ def page1():
     f = V["depan"]
     xl, xr = f.p(-HX, 0, 0)[0], f.p(HX, 0, 0)[0]
     xwl, xwr = f.p(-PX, 0, 0)[0], f.p(PX, 0, 0)[0]
-    yb = f.p(0, -HY, 0)[1]; yt = f.p(0, HY, 0)[1]
+    yb = f.p(0, YB, 0)[1]; yt = f.p(0, HY, 0)[1]
     y1, y2 = yb - 5.5, yb - 11.5
     hdim(ax, xwl, xl, y1, yb, yb, f1(PX - HX), small=True)
     hdim(ax, xl, xr, y1, yb, yb, f1(2 * HX))
     hdim(ax, xr, xwr, y1, yb, yb, f1(PX - HX), small=True)
     hdim(ax, xwl, xwr, y2, yb, yb, f1(2 * PX))
-    vdim(ax, xwr + 8, yb, yt, xwr, xwr, f1(2 * HY), side="right")
+    vdim(ax, xwr + 8, yb, yt, xwr, xwr, f1h(2 * HH), side="right")
     # jendela layar
     wx0, wx1 = f.p(win[2] - win[0] / 2, 0, 0)[0], f.p(win[2] + win[0] / 2, 0, 0)[0]
     wy0, wy1 = f.p(0, -win[1] / 2, 0)[1], f.p(0, win[1] / 2, 0)[1]
@@ -222,7 +230,7 @@ def page1():
     # ---------- TAMPAK KANAN (u=Z, v=Y) : USB-C + gland PG7
     k = V["kanan"]
     xk0 = k.p(0, 0, ZB)[0]; xk1 = k.p(0, 0, ZT)[0]
-    yk_t = k.p(0, HY, 0)[1]; yk_b = k.p(0, -HY, 0)[1]
+    yk_t = k.p(0, HY, 0)[1]; yk_b = k.p(0, YB, 0)[1]
     # USB-C
     xu, yu = k.p(0, uc["y"], uc["zc"])
     center_cross(ax, xu, yu, 3.2)
@@ -232,7 +240,7 @@ def page1():
     # gland
     xgl, ygl = k.p(0, gl["y"], gl["zc"])
     center_cross(ax, xgl, ygl, 5.5)
-    vdim(ax, xk0 - 7, yk_b, ygl, xk0, xk0, f1(HY + gl["y"]), side="left")
+    vdim(ax, xk0 - 7, yk_b, ygl, xk0, xk0, f1(gl["y"] - YB), side="left")
     hdim(ax, k.p(0, 0, ZB)[0], xgl, yk_b - 6.5, yk_b, yk_b, f1(gl["zc"] - ZB))
     leader(ax, (xgl + 4.5, ygl - 4.5), (xk1 + 9, ygl - 12), f"GLAND PG7  Ø{f1(gl['hole'])}")
     ax.text(xk1 + 9.8, ygl - 15.5, f"(boss + kantong mur AF {f1(gl['nut_af'])})", fontsize=5.4, ha="left", va="center", zorder=7)
@@ -242,8 +250,8 @@ def page1():
     # ---------- TAMPAK KIRI (u=-Z, v=Y)
     l = V["kiri"]
     xl0 = l.p(0, 0, ZT)[0]; xl1 = l.p(0, 0, ZB)[0]
-    yl_t = l.p(0, HY, 0)[1]; yl_b = l.p(0, -HY, 0)[1]
-    vdim(ax, xl1 + 8, yl_b, yl_t, xl1, xl1, f1(2 * HY), side="right")
+    yl_t = l.p(0, HY, 0)[1]; yl_b = l.p(0, YB, 0)[1]
+    vdim(ax, xl1 + 8, yl_b, yl_t, xl1, xl1, f1h(2 * HH), side="right")
     hdim(ax, xl0, xl1, yl_b - 6.5, yl_b, yl_b, f1(DEPTH))
     z_split_x = l.p(0, 0, ZS)[0]
     hdim(ax, z_split_x, xl1, yl_b - 12.5, yl_b, yl_b, f1(ZS - ZB), small=True)
@@ -263,10 +271,13 @@ def page1():
              "4. Dari tepi PCB: jack 61,3 dari Kiri;",
              "    micro-USB 20,7 dari Kiri;",
              "    USB-C 18,1 dari Atas.",
-             "5. Shell 105,0 x 63,5 x 34,4; dengan back",
-             "    plate + sayap: 133,0 x 63,5 x 37,4.",
-             "6. Rongga dalam 99,0 x 57,5, dinding 3,0.",
-             "7. Boss sekrup M3x8 (4x) di dinding Atas/Bawah."]
+             f"5. Shell {f1(2 * HX)} x {f1h(2 * HH)} x {f1(ZT - ZS)}; dengan back",
+             f"    plate + sayap: {f1(2 * PX)} x {f1h(2 * HH)} x {f1(DEPTH)}.",
+             f"6. Rongga dalam {f1(S['cavity'][0])} x {f1h(S['cavity'][1])}, dinding 3,0.",
+             "7. Boss sekrup M3x8 (4x) di dinding Atas/Bawah."] + ([
+             f"8. Ruang baterai 10 x 34 x 50: rongga sisi",
+             f"    Bawah diperlebar {f1(S['bay'])} (tepi PCB ke dinding",
+             f"    {f1(S['cavity_y'][0] - S['pcb']['y0'])}). Penyangga: 3 rusuk + 2 stopper di plate."] if V3 else [])
     for i, t in enumerate(notes):
         ax.text(340, 280 - i * 4.4, t, fontsize=6.3, fontweight="bold" if i == 0 else "normal", va="center", zorder=7)
     title_block(ax, 1, 2, "Tampak depan, atas, bawah, kanan, kiri")
@@ -277,34 +288,34 @@ def page1():
 def page2():
     fig, ax = new_sheet()
     # ---- tampak belakang (back plate)
-    bk = View("belakang", 130, 215, (140, 76), lambda X, Y, Z: (-X, Y), (0, 0))
+    bk = View("belakang", 130, 215, (140, 76), lambda X, Y, Z: (-X, Y), (0, YC))
     bk.draw(ax)
     x_l, x_r = bk.p(PX, 0, 0)[0], bk.p(-PX, 0, 0)[0]
-    y_b, y_t = bk.p(0, -HY, 0)[1], bk.p(0, HY, 0)[1]
+    y_b, y_t = bk.p(0, YB, 0)[1], bk.p(0, HY, 0)[1]
     hdim(ax, x_l, x_r, y_b - 6.5, y_b, y_b, f1(2 * PX))
-    vdim(ax, x_r + 8, y_b, y_t, x_r, x_r, f1(2 * HY), side="right")
+    vdim(ax, x_r + 8, y_b, y_t, x_r, x_r, f1h(2 * HH), side="right")
     # slot sabuk (kanan di gambar = Kanan casing karena u=-X)
     for sgn in (1, -1):
-        cx_, cy_ = bk.p(sgn * belt["slot_cx"], 0, 0)
+        cx_, cy_ = bk.p(sgn * belt["slot_cx"], YC, 0)
         center_cross(ax, cx_, cy_, 3.5)
     sxL = bk.p(belt["slot_cx"], 0, 0)[0]   # u negatif -> sisi kiri gambar (= Kiri casing? u=-X: X=+59 -> u=-59)
     sxR = bk.p(-belt["slot_cx"], 0, 0)[0]
     s_hw = belt["slot_w"] / 2
     hdim(ax, sxR - s_hw, sxR + s_hw, y_t + 6.5, y_t, y_t, f1(belt["slot_w"]), small=True)
-    vdim(ax, sxR + s_hw + 8, bk.p(0, -belt["slot_l"] / 2, 0)[1], bk.p(0, belt["slot_l"] / 2, 0)[1], sxR + s_hw, sxR + s_hw, f1(belt["slot_l"]), side="right")
+    vdim(ax, sxR + s_hw + 8, bk.p(0, YC - belt["slot_l"] / 2, 0)[1], bk.p(0, YC + belt["slot_l"] / 2, 0)[1], sxR + s_hw, sxR + s_hw, f1(belt["slot_l"]), side="right")
     hdim(ax, x_r, sxR + s_hw, y_b - 12.5, y_b, y_b, f1(PX - belt["slot_cx"] - s_hw), small=True)
     hdim(ax, sxR - s_hw, bk.p(-HX, 0, 0)[0], y_b - 18.5, y_b, y_b, f1(belt["slot_cx"] - s_hw - HX), small=True)
-    ax.text(sxR - 6, bk.p(0, 0, 0)[1] + 12, "slot sabuk: lebar sabuk <= 40, tebal <= 4,5", fontsize=5.4, ha="right", va="center", zorder=7)
+    ax.text(sxR - 6, bk.p(0, YC, 0)[1] + 12, "slot sabuk: lebar sabuk <= 40, tebal <= 4,5", fontsize=5.4, ha="right", va="center", zorder=7)
     # dinding shell (garis putus) dan lubang sekrup
     sh_x0, sh_x1 = bk.p(HX, 0, 0)[0], bk.p(-HX, 0, 0)[0]
     ax.add_patch(Rectangle((sh_x0, y_b + 0.0), sh_x1 - sh_x0, y_t - y_b, fill=False, lw=0.4, ec="k", ls=(0, (6, 2)), zorder=5))
-    ax.text(bk.p(0, 0, 0)[0], bk.p(0, 0, 0)[1], "siluet shell (garis putus)", fontsize=5.6, ha="center", va="center", zorder=7)
+    ax.text(bk.p(0, 0, 0)[0], bk.p(0, YC, 0)[1], "siluet shell (garis putus)", fontsize=5.6, ha="center", va="center", zorder=7)
     pts = S["screws"]
     xs_ = sorted({p[0] for p in pts}); ys_ = sorted({p[1] for p in pts})
     xa_, xb_ = bk.p(xs_[1], 0, 0)[0], bk.p(xs_[0], 0, 0)[0]
     ya_, yb_ = bk.p(0, ys_[0], 0)[1], bk.p(0, ys_[1], 0)[1]
     hdim(ax, xa_, xb_, y_t + 13, yb_, yb_, f1(xs_[1] - xs_[0]))
-    vdim(ax, x_l - 8, ya_, yb_, xa_, xa_, f1(ys_[1] - ys_[0]), side="left")
+    vdim(ax, x_l - 8, ya_, yb_, xa_, xa_, f1h(ys_[1] - ys_[0]), side="left")
     leader(ax, (xb_ + 2.4, ya_ + 2.4), (xb_ + 14, ya_ + 12), "4x lubang M3, countersink Ø6,6 (sekrup M3x8 flat head)")
     ax.text(130, y_t + 22, "TAMPAK BELAKANG (back plate + sayap)", fontsize=8.5, fontweight="bold", ha="center", va="center")
 
@@ -314,7 +325,7 @@ def page2():
         if os.path.exists(p):
             im = np.asarray(Image.open(p).convert("RGB"))
             hh, ww = im.shape[:2]
-            crop = im[int(hh * 0.18):int(hh * 0.88), int(ww * 0.14):int(ww * 0.86)]
+            crop = im[int(hh * 0.18):int(hh * 0.88), int(ww * (0.10 if V3 else 0.14)):int(ww * (0.90 if V3 else 0.86))]
             ch, cw = crop.shape[:2]
             hh_mm = w_ * ch / cw
             ax.imshow(crop, extent=(cx_ - w_ / 2, cx_ + w_ / 2, cy_ - hh_mm / 2, cy_ + hh_mm / 2), zorder=1)
@@ -353,9 +364,10 @@ def page2():
             ("Atas", "jack AD8232", f"{f1(HX - jk['x'])} dari Kiri; Z {f1(jk['zc'] - ZB)}", f"Ø{f1(jk['d'] + .2)}"),
             ("Atas", "saklar KCD11", f"{f1(HX - sw['x'])} dari Kiri; Z {f1(sw['zc'] - ZB)}", f"{f1(sw['cut_w'] + .1)} x {f1(sw['cut_h'] + .1)}"),
             ("Kanan", "USB-C powerbank", f"{f1(HY - uc['y'])} dari Atas; Z {f1(uc['zc'] - (uc['h'] + .2) / 2 - ZB)}-{f1(uc['zc'] + (uc['h'] + .2) / 2 - ZB)}", f"{f1(uc['w'] + .2)} x {f1(uc['h'] + .2)}"),
-            ("Kanan", "gland PG7 (PPG)", f"{f1(HY + gl['y'])} dari Bawah; Z {f1(gl['zc'] - ZB)}", f"Ø{f1(gl['hole'])} + mur AF {f1(gl['nut_af'])}"),
+            ("Kanan", "gland PG7 (PPG)", f"{f1(gl['y'] - YB)} dari Bawah; Z {f1(gl['zc'] - ZB)}", f"Ø{f1(gl['hole'])} + mur AF {f1(gl['nut_af'])}"),
             ("Depan", "jendela layar", f"pusat, geser {f1(abs(win[2]))} ke Kanan", f"{f1(win[0])} x {f1(win[1])}"),
-            ("Belakang", "slot sabuk 2x", f"X = +-{f1(belt['slot_cx'])} dari pusat", f"{f1(belt['slot_w'])} x {f1(belt['slot_l'])}")]
+            ("Belakang", "slot sabuk 2x", f"X = +-{f1(belt['slot_cx'])} dari pusat", f"{f1(belt['slot_w'])} x {f1(belt['slot_l'])}")] + (
+            [("Dalam", "ruang baterai (v3)", f"Y {S['battery']['y0']:.1f} s.d. {S['battery']['y1']:.1f} dari pusat pola baut".replace(".", ",").replace("s,d,", "s.d."), "10 x 34 x 50 + celah")] if V3 else [])
     cw = [17, 36, 62, 33]
     for r, row in enumerate(rows):
         yy = ty + 17 - r * 5.2
