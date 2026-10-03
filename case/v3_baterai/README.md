@@ -1,5 +1,7 @@
 # Cover v3: baterai PALO 103450 muat tanpa menumpuk
 
+> **PERHATIAN**: versi ini memakai boss di dinding sehingga tumpukan TFT + PCB + baterai tidak bisa dimasukkan dari belakang. Pakai `../v3b_sekrup_samping/` (ukuran luar sama, sekrup dari samping).
+
 Dibuat dari generator yang sama dengan v2 (`../make_case.py -- <folder> --bay`). Semua yang sudah Anda setujui di v2 **tidak berubah**:
 posisi dan ukuran semua lubang terhadap PCB (micro-USB Bawah, jack + saklar KCD11 Atas, USB-C + gland PG7 Kanan), jendela layar, 4 sekrup M3 x 8, 4 tiang penyangga PCB, sayap + 2 slot sabuk, sudut R5, chamfer, tebal dinding 3 mm.
 

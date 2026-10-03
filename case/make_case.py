@@ -23,6 +23,8 @@ from mathutils import Vector, Matrix
 OUT = sys.argv[sys.argv.index("--") + 1] if "--" in sys.argv else (sys.argv[1] if len(sys.argv) > 1 else ".")
 os.makedirs(OUT, exist_ok=True)
 BAY_ON = "--bay" in sys.argv          # v3: rongga sisi BAWAH diperlebar supaya baterai 10x34x50 muat tanpa menumpuk modul
+RAKIT_ON = "--rakit" in sys.argv      # dapat dirakit: tumpukan TFT+PCB masuk LURUS dari belakang (tanpa boss di dinding),
+                                      # plate dikunci 4 sekrup SAMPING ke lug di plate, alur di dinding untuk konektor yang menjorok
 
 # =============================================================== PARAMETER ==
 # ---- dari Gerber ----------------------------------------------------------
@@ -101,6 +103,17 @@ SWITCH = dict(x=3.0, zc=21.0, cut_w=14.0, cut_h=9.0, rec_w=16.6, rec_h=11.2, pan
 SCREW_X = [23.0, -23.0]
 BOSS_W, BOSS_IN, BOSS_TOP = 10.0, 6.0, 4.3
 PILOT_D, CLEAR_D, CSK_D, CSK_DEPTH, SCREW_LEN = 2.7, 3.4, 6.4, 1.6, 8.0
+
+# ---- varian --rakit: sekrup samping ------------------------------------------------------------------------
+# Boss sekrup di dinding (BOSS_*) menghalangi PCB/TFT (lebar 56 mm vs celah 45 mm di antara boss) sehingga tumpukan tidak bisa
+# dimasukkan dari belakang. Di varian ini boss dipindah ke back plate (LUG) dan plate dikunci dengan 4 sekrup M3 dari SAMPING
+# (menembus dinding Atas/Bawah, masuk ke lug). Kepala sekrup bulat (pan/button) duduk di permukaan dinding (tanpa countersink).
+RAKIT = dict(z=2.0, clear_d=3.4, pilot_d=2.6, lug_w=9.0, lug_in=6.4, lug_top=4.4, lug_gap=0.25, pilot_depth=5.2,
+             screw_len=8.0, head_d=5.6, head_h=2.3, groove_clear=0.25, groove_side=0.3)
+# posisi 4 sekrup samping (x, sisi). Atas (+Y): x = +-23. Bawah (-Y): x = +-23 (v3, rongga Bawah lebar, tanpa alur) atau x = +-9
+# (v2: alur micro-USB di x = 24.1 ... 32.5 terlalu dekat ke x = 23; x = +-9 juga bebas dari kaki soket ESP32 di x = 15.6 dan
+# dari rusuk/stopper penyangga baterai v3 tidak relevan karena v3 memakai +-23).
+RAKIT_POS = [(23.0, +1), (-23.0, +1)] + ([(23.0, -1), (-23.0, -1)] if BAY_ON else [(9.0, -1), (-9.0, -1)])
 
 # ---- tiang penyangga PCB di back plate ------------------------------------
 POST_OD, POST_ID = 10.0, 7.2
@@ -272,7 +285,8 @@ for sxp in SCREW_X:
     for side in (+1, -1):
         wall_in = wall_y(side)
         y_a, y_b = sorted([wall_in + side * 0.3, wall_in - side * BOSS_IN])
-        boss_blocks.append(box("boss_sekrup", sxp - BOSS_W / 2, sxp + BOSS_W / 2, y_a, y_b, Z_SPLIT, BOSS_TOP))
+        if not RAKIT_ON:
+            boss_blocks.append(box("boss_sekrup", sxp - BOSS_W / 2, sxp + BOSS_W / 2, y_a, y_b, Z_SPLIT, BOSS_TOP))
         screw_pos.append((sxp, wall_in - side * 3.5))
 
 union_all(shell, [boss_g])        # (boss sekrup ditambah SETELAH rongga dipotong, kalau tidak ikut terhapus)
@@ -314,8 +328,35 @@ ghole = cyl("ghole", gy, gz, g["hole"] / 2, gx(U) - 0.5, x_pocket_bot + 0.1, "X"
 cut_all(shell, [pocket, ghole])
 
 # --- lubang pilot sekrup penutup (tembus ke atas boss supaya M3x8 tidak mentok)
-pilots = [cyl("pilot", px, py, PILOT_D / 2, Z_SPLIT - 0.2, BOSS_TOP + 0.2, "Z", n=32) for px, py in screw_pos]
-cut_all(shell, pilots)
+if not RAKIT_ON:
+    pilots = [cyl("pilot", px, py, PILOT_D / 2, Z_SPLIT - 0.2, BOSS_TOP + 0.2, "Z", n=32) for px, py in screw_pos]
+    cut_all(shell, pilots)
+else:
+    # lubang tembus sekrup samping (dari luar dinding Atas/Bawah ke rongga) + alur dalam dinding untuk konektor yang menjorok
+    R_ = RAKIT
+    cut_all(shell, [cyl("sidehole", sxp, R_["z"], R_["clear_d"] / 2, min(wall_y(sd), wall_y(sd) + sd * (WALL + 0.5)) - 0.0,
+                        max(wall_y(sd), wall_y(sd) + sd * (WALL + 0.5)), "Y", n=32)
+                    for sxp, sd in RAKIT_POS])
+    GROOVES = []
+    # hidung jack AD8232 (Y+): laras Ø6 menembus ke dinding, alur dari bidang belah sampai lubang jack
+    nose_y = my(3.977)
+    d_ = max(0.0, nose_y - CAV_YT)
+    if d_ > 0:
+        GROOVES.append(dict(nama="jack", x=[JACK["x"] - 3.0 - R_["groove_side"], JACK["x"] + 3.0 + R_["groove_side"]],
+                            y=[CAV_YT - 0.5, CAV_YT + d_ + R_["groove_clear"]], z=[Z_SPLIT - 0.2, JACK["zc"]]))
+    # soket micro-USB ESP32 (Y-): badan 7.8 mm menjorok ke dinding
+    usb_y = my(63.9)
+    d_ = max(0.0, CAV_YB - usb_y)
+    if d_ > 0:
+        GROOVES.append(dict(nama="micro", x=[MICRO["x"] - 3.9 - R_["groove_side"], MICRO["x"] + 3.9 + R_["groove_side"]],
+                            y=[CAV_YB - d_ - R_["groove_clear"], CAV_YB + 0.5], z=[Z_SPLIT - 0.2, MICRO["zc"]]))
+    # port USB-C powerbank (X-): menjorok ke dinding Kanan
+    usbc_x = mx(106.1)
+    d_ = max(0.0, -CAV_HX - usbc_x)
+    if d_ > 0:
+        GROOVES.append(dict(nama="usbc", x=[-CAV_HX - d_ - R_["groove_clear"], -CAV_HX + 0.5],
+                            y=[my(28.2) - R_["groove_side"], my(19.3) + R_["groove_side"]], z=[Z_SPLIT - 0.2, USBC["zc"]]))
+    cut_all(shell, [box("alur_" + g_["nama"], g_["x"][0], g_["x"][1], g_["y"][0], g_["y"][1], g_["z"][0], g_["z"][1]) for g_ in GROOVES])
 
 # ============================================================ BACK PLATE =====
 PX, PY = OUT_HX + WING, OUT_HYH                     # plate + sayap = satu persegi panjang membulat
@@ -355,9 +396,23 @@ for k, (px, py) in enumerate(MOUNT):   # rongga ekor baut + mur juga memotong ri
     bop(plate, cyl(f"hollow{k}", px, py, POST_ID / 2, Z_SPLIT, Z_PCB0 + 0.2, "Z", n=64))
 
 # lubang sekrup + countersink (M3 flat head)
-for px, py in screw_pos:
-    bop(plate, cyl("thru", px, py, CLEAR_D / 2, Z_PLATE0 - 0.2, Z_SPLIT + 0.2, "Z", n=32))
-    bop(plate, frustum("csk", px, py, CSK_D / 2 + 0.1, CLEAR_D / 2, Z_PLATE0 - 0.1, Z_PLATE0 + CSK_DEPTH))
+LUGS = []
+if not RAKIT_ON:
+    for px, py in screw_pos:
+        bop(plate, cyl("thru", px, py, CLEAR_D / 2, Z_PLATE0 - 0.2, Z_SPLIT + 0.2, "Z", n=32))
+        bop(plate, frustum("csk", px, py, CSK_D / 2 + 0.1, CLEAR_D / 2, Z_PLATE0 - 0.1, Z_PLATE0 + CSK_DEPTH))
+else:
+    # lug (pengganti boss di dinding): blok di bawah PCB menempel dinding Atas/Bawah, lubang pilot horizontal untuk sekrup samping
+    R_ = RAKIT
+    for sxp, sd in RAKIT_POS:
+        y_out = wall_y(sd) - sd * R_["lug_gap"]                           # muka luar lug (celah 0.25 mm ke dinding)
+        y_in = y_out - sd * R_["lug_in"]
+        ya, yb = sorted([y_out, y_in])
+        union_all(plate, [box("lug", sxp - R_["lug_w"] / 2, sxp + R_["lug_w"] / 2, ya, yb, Z_SPLIT - 0.01, R_["lug_top"])])
+        y_p = y_out - sd * R_["pilot_depth"]
+        pa, pb = sorted([y_out + sd * 0.3, y_p])
+        bop(plate, cyl("pilot_lug", sxp, R_["z"], R_["pilot_d"] / 2, pa, pb, "Y", n=24))
+        LUGS.append(dict(x=sxp, side=sd, y=[ya, yb], top=R_["lug_top"], pilot_y=[pa, pb]))
 
 # slot sabuk (2): lubang vertikal (sumbu Z) di sayap -> sabuk turun lewat slot, lewat di belakang plate, naik lewat slot lain
 SLOT_CX = OUT_HX + BELT_SLOT_OFF + BELT_SLOT_W / 2
@@ -413,14 +468,26 @@ for p_ in sp_parts[1:]:
 ghost("Baut_spacer", base, (0.85, 0.65, 0.15, 1))
 # sekrup penutup M3x8 flat head (kepala rata dengan sisi belakang plate)
 scr = None
-for k, (px, py) in enumerate(screw_pos):
-    a = cyl(f"s{k}", px, py, 1.5, Z_PLATE0, Z_PLATE0 + SCREW_LEN, "Z", n=24, coll=COL_GHOST)
-    h = frustum(f"h{k}", px, py, CSK_D / 2, 1.5, Z_PLATE0, Z_PLATE0 + 1.6)
-    COL_MAIN.objects.unlink(h); COL_GHOST.objects.link(h)
-    bop(a, h, "UNION")
-    if scr is None: scr = a
-    else: bop(scr, a, "UNION")
-ghost("Sekrup_M3x8", scr, (0.7, 0.7, 0.75, 1))
+if not RAKIT_ON:
+    for k, (px, py) in enumerate(screw_pos):
+        a = cyl(f"s{k}", px, py, 1.5, Z_PLATE0, Z_PLATE0 + SCREW_LEN, "Z", n=24, coll=COL_GHOST)
+        h = frustum(f"h{k}", px, py, CSK_D / 2, 1.5, Z_PLATE0, Z_PLATE0 + 1.6)
+        COL_MAIN.objects.unlink(h); COL_GHOST.objects.link(h)
+        bop(a, h, "UNION")
+        if scr is None: scr = a
+        else: bop(scr, a, "UNION")
+    ghost("Sekrup_M3x8", scr, (0.7, 0.7, 0.75, 1))
+else:
+    # sekrup samping M3 x 8 kepala bulat: kepala di permukaan luar dinding, batang menembus dinding dan masuk lug
+    R_ = RAKIT
+    for k, (sxp, sd) in enumerate(RAKIT_POS):
+        y_surf = (OUT_YT if sd > 0 else OUT_YB)
+        sh_ = cyl(f"ss{k}", sxp, R_["z"], 1.5, min(y_surf, y_surf - sd * R_["screw_len"]), max(y_surf, y_surf - sd * R_["screw_len"]), "Y", n=24, coll=COL_GHOST)
+        hd_ = cyl(f"sh{k}", sxp, R_["z"], R_["head_d"] / 2, min(y_surf, y_surf + sd * R_["head_h"]), max(y_surf, y_surf + sd * R_["head_h"]), "Y", n=24, coll=COL_GHOST)
+        bop(sh_, hd_, "UNION")
+        if scr is None: scr = sh_
+        else: bop(scr, sh_, "UNION")
+    ghost("Sekrup_samping_M3", scr, (0.7, 0.7, 0.75, 1))
 if BAY_ON:
     ghost("Baterai_PALO103450", box("g", BAT["x0"], BAT["x1"], BAT["y0"], BAT["y1"], BAT["z0"], BAT["z1"], COL_GHOST), (0.95, 0.75, 0.1, 1))
 # konektor
@@ -475,6 +542,7 @@ summary = dict(
     micro=MICRO, jack=JACK, usbc=USBC, gland=GLAND, switch=SWITCH, screws=screw_pos, window=[WIN_W, WIN_H, WIN_CX, WIN_CY],
     belt=dict(slot_w=BELT_SLOT_W, slot_l=BELT_SLOT_L, slot_cx=SLOT_CX, wing=WING),
     screw=dict(len=SCREW_LEN, boss_top=BOSS_TOP, csk_depth=CSK_DEPTH, plate_t=PLATE_T), ch=CH, out_r=OUT_R, plate_r=PR,
+    rakit=(dict(RAKIT, lugs=LUGS, grooves=GROOVES, pos=RAKIT_POS) if RAKIT_ON else None),
 )
 json.dump(summary, open(os.path.join(OUT, "_ref", "summary.json"), "w"), indent=1)
 print("OK", OUT)

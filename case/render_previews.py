@@ -44,7 +44,7 @@ shell.data.materials.append(mk_mat("shell", (0.82, 0.84, 0.88, 1)))
 plate.data.materials.append(mk_mat("plate", (0.30, 0.45, 0.65, 1)))
 ghost_cols = {"PCB_hijau": (0.05, 0.5, 0.15, 1), "TFT_PCB": (0.75, 0.05, 0.05, 1), "Kaca_touch": (0.02, 0.02, 0.04, 1),
               "Area_aktif": (0.2, 0.55, 1, 1), "Baut_spacer": (0.85, 0.65, 0.15, 1), "microUSB_ESP32": (0.75, 0.75, 0.8, 1),
-              "USBC_powerbank": (0.75, 0.75, 0.8, 1), "Plug_jack_AD8232": (0.05, 0.05, 0.05, 1), "Badan_saklar_KCD11": (0.05, 0.05, 0.05, 1), "Sekrup_M3x8": (0.8, 0.8, 0.85, 1),
+              "USBC_powerbank": (0.75, 0.75, 0.8, 1), "Plug_jack_AD8232": (0.05, 0.05, 0.05, 1), "Badan_saklar_KCD11": (0.05, 0.05, 0.05, 1), "Sekrup_M3x8": (0.8, 0.8, 0.85, 1), "Sekrup_samping_M3": (0.8, 0.8, 0.85, 1),
               "Gland_PG7_+_mur": (0.1, 0.2, 0.9, 1), "Baterai_PALO103450": (0.95, 0.75, 0.1, 1)}
 ghosts = [o for o in bpy.data.objects if o.name.startswith("Ref_")]
 for g in ghosts:

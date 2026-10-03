@@ -1,5 +1,10 @@
 # Cover alat ECG + PPG (ESP32 + TFT ILI9488 3,5" + PCB custom)  -  v2 (+ varian v3 baterai di `v3_baterai/`)
 
+> **PENTING (urutan rakit)**: shell v2 dan v3 di folder ini punya 4 boss sekrup di dinding yang **menghalangi tumpukan TFT + PCB** saat dimasukkan dari belakang
+> (dan konektor micro-USB / jack / USB-C menyangkut di dinding). Gunakan **`v2b_sekrup_samping/`** (tata letak sama dengan v2) atau **`v3b_sekrup_samping/`**
+> (baterai tidak menumpuk). Untuk shell v2 yang sudah tercetak ada jalur perbaikan di `v2b_sekrup_samping/perbaikan_v2_tercetak/`. Uji jalur: `verify_insert.py`.
+
+
 Rumah 2 bagian: **Shell depan** (jendela layar + semua lubang) dan **Back plate** (penutup belakang + 4 tiang penyangga PCB + 2 sayap slot sabuk).
 Dibuat parametrik dengan Blender (`bpy` 5.0.1). Satuan **mm**.
 
@@ -10,12 +15,15 @@ Dibuat parametrik dengan Blender (`bpy` 5.0.1). Satuan **mm**.
 | `1_Shell_Depan_siap_cetak.stl` | Shell, sudah diputar: **layar menghadap meja** |
 | `2_BackPlate_siap_cetak.stl` | Back plate, sisi luar menghadap meja |
 | `gambar_teknik/` | **Gambar teknik A3 untuk draf TA** (PDF 2 halaman + PNG) dan skrip pembuatnya |
+| `v2b_sekrup_samping/` | **v2 yang dapat dirakit**: tanpa boss di dinding, sekrup samping, alur konektor, plus alat perbaikan shell v2 yang sudah tercetak. Lihat README di dalamnya |
+| `v3b_sekrup_samping/` | **v3 (baterai tanpa menumpuk) yang dapat dirakit** |
 | `v3_baterai/` | **v3: casing yang memuat baterai tanpa menumpuk modul** (STL siap cetak, .blend, gambar teknik A3, gambar eksplode + penempatan baterai, pratinjau). Lihat `v3_baterai/README.md` |
 | `perakitan/` | Skrip gambar eksplode berwarna + daftar komponen + penempatan baterai (hasil v2 di folder ini: PDF A3 2 halaman; hasil v3 dengan model komponen nyata di `v3_baterai/perakitan/`, 3 halaman) |
 | `komponen/` | Model 3D komponen nyata yang dipakai gambar perakitan (ESP32 DevKit C V4, AD8232, HW-605/MAX30102) + skrip konversi dan render pratinjau |
 | `sensor_ppg/` | **Klip sensor PPG MAX30102 (HW-605) desain ulang**: kabel tidak lepas, pegas berdudukan, nyaman di jari. Lihat `sensor_ppg/README.md` |
 | `make_case.py` | Generator parametrik (semua ukuran di bagian `PARAMETER`) |
-| `verify_case.py` | Verifikasi otomatis |
+| `verify_case.py` | Verifikasi otomatis (juga varian `--rakit`) |
+| `verify_insert.py` | Uji jalur pemasangan: tumpukan masuk lurus dari belakang, plate masuk sesudahnya |
 | `data/pcb_holes.json` | Lubang bor PCB dari Gerber (untuk uji tabrakan kaki komponen) |
 | `preview/` | Render tampak luar, dalam, dan potongan penampang |
 
