@@ -25,6 +25,7 @@ os.makedirs(OUT, exist_ok=True)
 BAY_ON = "--bay" in sys.argv          # v3: rongga sisi BAWAH diperlebar supaya baterai 10x34x50 muat tanpa menumpuk modul
 PENAHAN_ON = "--penahan" in sys.argv  # boss sekrup dipisah dari shell: 4 PENAHAN (blok) dicetak terpisah, dilem ke dinding SESUDAH tumpukan masuk;
                                       # back plate dan 4 sekrup M3 x 8 flat head dari belakang TIDAK berubah (sama seperti v2)
+STRIP_ON = "--strip" in sys.argv       # (dengan --penahan) penahan berbentuk STRIP memanjang di sepanjang dinding Atas/Bawah, bukan 4 blok kecil
 RAKIT_ON = "--rakit" in sys.argv      # dapat dirakit: tumpukan TFT+PCB masuk LURUS dari belakang (tanpa boss di dinding),
                                       # plate dikunci 4 sekrup SAMPING ke lug di plate, alur di dinding untuk konektor yang menjorok
 
@@ -441,22 +442,45 @@ if BAY_ON:
         union_all(plate, [box(f"stop{k}", xa, xb, stop_y0, stop_y1, Z_SPLIT - 0.01, STOP_TOP)])
     CRADLE = dict(ribs_x=list(RIB_X), rib_w=RIB_W, y=[rib_y0, rib_y1], top=rib_top, stop_w=STOP_W, stop_top=STOP_TOP, stop_y=[stop_y0, stop_y1])
 
-# --- varian --penahan: 4 blok penahan sekrup terpisah (pengganti boss), posisi dan ukuran sama dengan boss v2 tetapi celah lem 0.3 mm ke dinding
+# --- varian --penahan: penahan sekrup terpisah (pengganti boss). Celah lem 0.3 mm ke dinding.
+#     tanpa --strip: 4 blok 10 x 6 x 4.8 mm (sama dengan boss v2); dengan --strip: strip memanjang (batang di atas rim plate + kaki di celah rim)
 PENAHAN = None
 PEN_GAP = 0.3
+STRIP_Z0 = 1.9                        # dasar batang strip: di atas puncak rim plate (Z = 1.5) dengan celah 0.4 mm
+STRIP_X = {+1: (-31.0, 31.0), -1: (-35.0, -11.0)}      # rentang batang (Atas, Bawah): bebas kaki PCB (jarak >= 1.5 mm) dan rim plate
 if PENAHAN_ON:
-    blocks = []
-    for sxp in SCREW_X:
-        for side in (+1, -1):
-            wall_in = wall_y(side)
-            ya, yb = sorted([wall_in - side * PEN_GAP, wall_in - side * (PEN_GAP + BOSS_IN)])
-            b_ = box("penahan", sxp - BOSS_W / 2, sxp + BOSS_W / 2, ya, yb, Z_SPLIT, BOSS_TOP)
-            bop(b_, cyl("pilot_pen", sxp, wall_in - side * 3.5, PILOT_D / 2, Z_SPLIT - 0.2, BOSS_TOP + 0.2, "Z", n=32), "DIFFERENCE")
-            blocks.append((b_, sxp, side))
-    PENAHAN = dict(blocks=[dict(x=sxp, side=sd, y=[min(wall_y(sd) - sd * PEN_GAP, wall_y(sd) - sd * (PEN_GAP + BOSS_IN)),
-                                                   max(wall_y(sd) - sd * PEN_GAP, wall_y(sd) - sd * (PEN_GAP + BOSS_IN))],
-                                 pilot=[sxp, wall_y(sd) - sd * 3.5]) for _, sxp, sd in blocks],
-                   gap=PEN_GAP, w=BOSS_W, d=BOSS_IN, top=BOSS_TOP, pilot_d=PILOT_D)
+    pieces = []                                       # (objek, nama, meta)
+    def pen_box(name, x0, x1, side, z0, z1):
+        wall_in = wall_y(side)
+        ya, yb = sorted([wall_in - side * PEN_GAP, wall_in - side * (PEN_GAP + BOSS_IN)])
+        return box(name, x0, x1, ya, yb, z0, z1)
+
+    def pen_pilot(ob, sxp, side):
+        bop(ob, cyl("pilot_pen", sxp, wall_y(side) - side * 3.5, PILOT_D / 2, Z_SPLIT - 0.2, BOSS_TOP + 0.2, "Z", n=32), "DIFFERENCE")
+
+    if not STRIP_ON:
+        for sxp in SCREW_X:
+            for side in (+1, -1):
+                b_ = pen_box("penahan", sxp - BOSS_W / 2, sxp + BOSS_W / 2, side, Z_SPLIT, BOSS_TOP)
+                pen_pilot(b_, sxp, side)
+                pieces.append((b_, "blok", dict(side=side, x=[sxp - BOSS_W / 2, sxp + BOSS_W / 2], feet=[sxp], zbar=[Z_SPLIT, BOSS_TOP])))
+    else:
+        plan = [(+1, STRIP_X[+1], [23.0, -23.0]), (-1, STRIP_X[-1], [-23.0]), (-1, (23.0 - BOSS_W / 2, 23.0 + BOSS_W / 2), [23.0])]
+        for side, (x0, x1), feet in plan:
+            long_ = (x1 - x0) > BOSS_W + 0.1
+            b_ = pen_box("penahan_strip" if long_ else "penahan", x0, x1, side, STRIP_Z0 if long_ else Z_SPLIT, BOSS_TOP)
+            if long_:
+                for fx in feet:
+                    bop(b_, pen_box("kaki", fx - BOSS_W / 2, fx + BOSS_W / 2, side, Z_SPLIT, BOSS_TOP), "UNION")
+            for fx in feet:
+                pen_pilot(b_, fx, side)
+            pieces.append((b_, "strip" if long_ else "blok", dict(side=side, x=[x0, x1], feet=feet, zbar=[STRIP_Z0 if long_ else Z_SPLIT, BOSS_TOP])))
+    _ya = lambda sd: min(wall_y(sd) - sd * PEN_GAP, wall_y(sd) - sd * (PEN_GAP + BOSS_IN))
+    _yb = lambda sd: max(wall_y(sd) - sd * PEN_GAP, wall_y(sd) - sd * (PEN_GAP + BOSS_IN))
+    PENAHAN = dict(blocks=[dict(x=fx, side=m_["side"], y=[_ya(m_["side"]), _yb(m_["side"])], pilot=[fx, wall_y(m_["side"]) - m_["side"] * 3.5])
+                           for _, _, m_ in pieces for fx in m_["feet"]],
+                   pieces=[dict(nama=n_, side=m_["side"], x=m_["x"], y=[_ya(m_["side"]), _yb(m_["side"])], zbar=m_["zbar"], feet=m_["feet"]) for _, n_, m_ in pieces],
+                   strip=STRIP_ON, gap=PEN_GAP, w=BOSS_W, d=BOSS_IN, top=BOSS_TOP, pilot_d=PILOT_D)
 
 # ============================================================ REFERENSI (ghost) ==
 ghosts = {}
@@ -550,22 +574,26 @@ export_stl(plate, os.path.join(OUT, "2_BackPlate_siap_cetak.stl"), shift_z=-Z_PL
 chk = os.path.join(OUT, "_ref")
 os.makedirs(chk, exist_ok=True)
 if PENAHAN_ON:
-    # (1) tata letak cetak: 4 salinan berjajar, sisi belakang di meja, blok sisi Bawah diputar 180 derajat (bentuk sama)
+    # (1) tata letak cetak: tiap bagian dibalik (sisi puncak di meja = bidang datar terbesar, tanpa overhang), berjajar sepanjang Y
     print_objs = []
-    for k, (b_, sxp, side) in enumerate(blocks):
+    yoff = 0.0
+    for k, (b_, nm_, m_) in enumerate(pieces):
         o_ = b_.copy(); o_.data = b_.data.copy()
         bpy.context.scene.collection.objects.link(o_)
-        cy_ = wall_y(side) - side * (PEN_GAP + BOSS_IN / 2)
-        M_ = Matrix.Translation(((k - 1.5) * 16.0, 0, -Z_SPLIT)) @ (Matrix.Rotation(math.pi, 4, "Z") if side < 0 else Matrix.Identity(4)) @ Matrix.Translation((-sxp, -cy_, 0))
+        sd = m_["side"]
+        cx_, cy_ = (m_["x"][0] + m_["x"][1]) / 2, wall_y(sd) - sd * (PEN_GAP + BOSS_IN / 2)
+        # putar 180 derajat sekitar sumbu X (puncak jadi alas), pusatkan, lalu geser berjajar
+        M_ = (Matrix.Translation((0, yoff, BOSS_TOP)) @ Matrix.Rotation(math.pi, 4, "X") @ Matrix.Translation((-cx_, -cy_, 0)))
         o_.data.transform(M_)
         print_objs.append(o_)
+        yoff += BOSS_IN + 6.0
     pb_ = print_objs[0]
     for o_ in print_objs[1:]:
         bop(pb_, o_, "UNION")
-    export_stl(pb_, os.path.join(OUT, "3_Penahan_Sekrup_x4_siap_cetak.stl"))
+    export_stl(pb_, os.path.join(OUT, "3_Penahan_Sekrup_siap_cetak.stl"))
     # (2) posisi desain (untuk uji)
-    base_ = blocks[0][0]
-    for b_, _, _ in blocks[1:]:
+    base_ = pieces[0][0]
+    for b_, _, _ in pieces[1:]:
         bop(base_, b_, "UNION")
     base_.name = "Penahan_desain"
     export_stl(base_, os.path.join(chk, "penahan_design.stl"))

@@ -105,11 +105,11 @@ def box_obj(name, x0, x1, y0, y1, z0, z1, col):
 
 epoxy = []
 P_ = S["penahan"]
-for blk in P_["blocks"]:
-    ya, yb = blk["y"]; side = blk["side"]
+for pc in P_.get("pieces", [dict(side=b["side"], x=[b["x"] - P_["w"] / 2, b["x"] + P_["w"] / 2], y=b["y"], zbar=[-0.5, P_["top"]]) for b in P_["blocks"]]):
+    ya, yb = pc["y"]; side = pc["side"]
     face = yb if side > 0 else ya                                            # muka penahan yang menghadap dinding
     y0, y1 = (face, face + 1.2) if side > 0 else (face - 1.2, face)
-    epoxy.append(box_obj("epoxy", blk["x"] - P_["w"] / 2, blk["x"] + P_["w"] / 2, y0, y1, -0.5, P_["top"], EPOXY))
+    epoxy.append(box_obj("epoxy", pc["x"][0], pc["x"][1], y0, y1, pc["zbar"][0], pc["zbar"][1], EPOXY))
 
 ALL = [shell, plate, pen, screws] + stack + onshell + epoxy
 BASE = {o: o.location.copy() for o in ALL}

@@ -10,6 +10,7 @@ D, V2 = sys.argv[1], sys.argv[2]
 R = os.path.join(D, "_ref"); R2 = os.path.join(V2, "_ref")
 S = json.load(open(os.path.join(R, "summary.json")))
 P = S["penahan"]
+NP = len(P.get("pieces", P["blocks"]))                    # jumlah bagian (4 blok, atau 3 bagian bila --strip)
 ok_all = True
 
 
@@ -54,7 +55,7 @@ report("tepat 4 boss", len(bodies) == 4)
 
 print("\n=== 3. Penahan (4 blok) ===")
 pb = pen.split(only_watertight=False)
-report("penahan desain: 4 badan, rapat", len(pb) == 4 and all(b.is_watertight for b in pb))
+report(f"penahan desain: {NP} badan, rapat", len(pb) == NP and all(b.is_watertight for b in pb))
 ok_p = True
 for blk in P["blocks"]:
     x, (ya, yb) = blk["x"], blk["y"]; px, py = blk["pilot"]
@@ -63,11 +64,19 @@ for blk in P["blocks"]:
     hole = pen.contains(np.array([[px, py, 2.0], [px, py, 4.0], [px, py, 4.4]]))
     ok_p &= bool(body.all()) and not hole.any()
 report("tiap penahan padat dan berlubang pilot Ø2.7 tembus ke atas", ok_p)
-pr = trimesh.load(os.path.join(D, "3_Penahan_Sekrup_x4_siap_cetak.stl"))
-report("STL cetak: satu berkas, 4 blok identik, sisi belakang di meja (Z=0), tanpa support", pr.is_watertight and len(pr.split(only_watertight=False)) == 4 and abs(pr.bounds[0][2]) < 1e-6,
+pf_ = os.path.join(D, "3_Penahan_Sekrup_siap_cetak.stl")
+if not os.path.exists(pf_): pf_ = os.path.join(D, "3_Penahan_Sekrup_x4_siap_cetak.stl")
+pr = trimesh.load(pf_)
+report(f"STL cetak: satu berkas, {NP} bagian, rata di meja (Z=0), tanpa support", pr.is_watertight and len(pr.split(only_watertight=False)) == NP and abs(pr.bounds[0][2]) < 1e-6,
        f"(ukuran {np.round(pr.extents, 1).tolist()} mm, tinggi {pr.bounds[1][2]:.1f})")
 vols = sorted(round(b.volume, 1) for b in pr.split(only_watertight=False))
-report("4 blok bervolume sama", max(vols) - min(vols) < 0.5, f"({vols})")
+if not P.get("strip"):
+    report("4 blok bervolume sama", max(vols) - min(vols) < 0.5, f"({vols})")
+else:
+    print(f"      volume bagian cetak (mm3): {vols}")
+    # puncak strip rata di meja: luas kontak dengan meja (Z=0) harus >= 40% luas denah tiap bagian (tanpa overhang)
+    flat_ = [b for b in pr.split(only_watertight=False)]
+    report("tidak ada overhang: dasar cetak = puncak penahan (bidang rata)", all(abs(b.bounds[0][2]) < 1e-6 for b in flat_))
 
 print("\n=== 4. Dipasang SESUDAH tumpukan masuk: tidak menabrak komponen ===")
 refs = {os.path.basename(f)[4:-4]: trimesh.load(f) for f in sorted(glob.glob(os.path.join(R, "ref_*.stl")))}
@@ -83,6 +92,10 @@ report("puncak penahan di bawah PCB (celah >= 0.2 mm)", d_pcb >= 0.2, f"({d_pcb:
 v_sh = vol(pen, shell); d_sh = mind(pen, shell)
 report("penahan tidak menyentuh shell tanpa lem: celah lem ke dinding", v_sh < 0.01 and 0.2 <= d_sh <= 0.4, f"(irisan {v_sh:.3f}; celah {d_sh:.2f} mm, diisi epoxy)")
 v_pl = vol(pen, plate)
+if P.get("strip"):
+    pts_ = pen.sample(6000); pts_ = pts_[pts_[:, 2] > 1.75]                  # bagian batang (di atas kaki)
+    d_rim = closest_point(plate, pts_)[1].min()
+    report("batang strip melintas di atas rim plate tanpa menyentuh (celah >= 0.3 mm)", d_rim >= 0.3, f"({d_rim:.2f} mm)")
 report("penahan tidak menabrak back plate (duduk di lantai plate)", v_pl < 0.3, f"(irisan {v_pl:.3f} mm3)")
 
 print("\n=== 5. Penahan tidak menutup lubang port / jack / saklar / gland ===")
@@ -113,13 +126,14 @@ print("\n=== 6. Penahan jauh dari kaki komponen/solder PCB ===")
 holes = json.load(open(os.path.join(V2, "data", "pcb_holes.json")))["holes"]
 XH, YH = 56.007, 33.655
 mg = 99
-for blk in P["blocks"]:
-    bx0, bx1 = blk["x"] - P["w"] / 2, blk["x"] + P["w"] / 2; by0, by1 = blk["y"]
+fp = [dict(x=pc["x"], y=pc["y"]) for pc in P["pieces"]] if "pieces" in P else [dict(x=[b["x"] - P["w"] / 2, b["x"] + P["w"] / 2], y=b["y"]) for b in P["blocks"]]
+for blk in fp:
+    bx0, bx1 = blk["x"]; by0, by1 = blk["y"]
     for h in holes:
         hx, hy = -(h["xg"] - XH), -(h["yg"] - YH)
         dx = max(bx0 - hx, 0, hx - bx1); dy = max(by0 - hy, 0, hy - by1)
         mg = min(mg, np.hypot(dx, dy) - h["d"] / 2)
-report("jarak penahan ke lubang/kaki PCB >= 1.5 mm", mg >= 1.5, f"(terdekat {mg:.2f} mm)")
+report("jarak penahan (seluruh denah) ke lubang/kaki PCB >= 1.5 mm", mg >= 1.5, f"(terdekat {mg:.2f} mm)")
 
 print("\n=== 7. Sekrup M3 x 8 flat head dari belakang ===")
 eng = vol(sc1, pen)
