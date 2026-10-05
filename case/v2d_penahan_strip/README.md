@@ -12,6 +12,16 @@ Berkas: `3_Penahan_Sekrup_siap_cetak.stl` (3 bagian dalam satu berkas, dicetak t
 Bentuk: batang setinggi 2,4 mm (Z 1,9 ... 4,3) yang **melintas di atas rim plate** (celah 0,4 mm) dan **kaki** setinggi 4,8 mm tepat di celah rim plate di tiap sekrup. Strip tidak bisa dibuat menerus penuh karena kaki PCB (soket ESP32 di x = 15,6 sisi Bawah, kaki header saklar di x = -38 sisi Atas) dan rim plate.
 Plate v2 dan sekrup flat head dari belakang sama persis dengan v2 (md5 identik). Cara pasang, urutan, dan peringatan sama dengan v2c (lihat `../v2c_penahan_sekrup/README.md`).
 
+## Peletakan 3 bagian (tetap): lihat `Peletakan_Penahan.png` (denah, koordinat, jarak ke port) dan `Peletakan_Penahan_3D.png` (di atas plate)
+| No | Bagian | Dinding | Rentang x (mm) | Sekrup |
+|---|---|---|---|---|
+| 1 | Strip panjang 62 mm | ATAS (+Y), sisi jack AD8232 dan saklar | -31 ... +31 (di tengah, 18,5 mm dari tiap ujung rongga) | x = -23 dan +23 |
+| 2 | Strip sedang 24 mm | BAWAH (-Y), sisi KANAN (ujung gland/USB-C) | -35 ... -11 | x = -23 |
+| 3 | Blok kecil 10 mm | BAWAH (-Y), sisi KIRI, tepat di sebelah micro-USB | +18 ... +28 | x = +23 |
+
+Aturan: strip panjang selalu di dinding yang berlubang jack AD8232 dan jendela saklar; jangan terbalik 180 derajat (menabrak kaki soket ESP32). Ketiga bagian wajib dipakai (bagian 2 dan 3 adalah satu-satunya jangkar sekrup Bawah).
+Membuat ulang gambar: `python gambar_peletakan_penahan.py v2d_penahan_strip v2d_penahan_strip/Peletakan_Penahan.png`; render 3D: `render_penahan_label.py`.
+
 ## Logika (lihat `Gambar_Logika_Penahan.png`)
 - Sekrup dari belakang menarik plate ke atas dan penahan ke bawah: keduanya saling menjepit, **bukan** menahan plate ke shell.
 - Agar plate tertahan di shell, penahan harus terikat ke shell. Dinding dalam rata (tidak ada tonjolan untuk dikait) dan penahan di bawah PCB, jadi ikatan hanya bisa lewat **epoxy** (atau lewat lubang di dinding: sekrup samping, `../v2b_sekrup_samping/`).
