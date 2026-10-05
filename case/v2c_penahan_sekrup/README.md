@@ -5,6 +5,8 @@ M3 x 8 flat head dari belakang dipertahankan: kepala sekrup rata dengan sisi lua
 Yang baru hanya **4 penahan sekrup** (`3_Penahan_Sekrup_x4_siap_cetak.stl`): blok 10 x 6 x 4,8 mm berlubang pilot Ø2,7, sama dengan boss v2, tetapi
 dicetak terpisah dan **dilem ke dinding sesudah tumpukan masuk**. (Shell di folder ini = shell v2 tanpa boss; jika shell Anda sudah dipotong, tidak perlu dicetak ulang.)
 
+**Visual langkah demi langkah dan potongan: `Gambar_Pemasangan_Penahan_A3.png` / `.pdf`** (render di `render/`).
+
 ## Cara memasang (plate dipakai sebagai jig supaya sekrup pas dengan lubang plate)
 1. Tumpukan (TFT + standoff + PCB + modul + kabel) sudah di dalam shell, semua sambungan beres.
 2. Amplas halus muka penahan yang menghadap dinding dan area dinding bekas boss (x = +-18 ... +-28 mm, sampai 4,3 mm dari tepi belakang), bersihkan dengan alkohol.
@@ -26,4 +28,4 @@ pakai `../v2b_sekrup_samping/` (sekrup dari samping, lug di plate, tumpukan bisa
 - Plate + 4 penahan (terpasang dengan sekrup) masuk lurus ke shell berisi tumpukan tanpa tabrakan, jadi prosedur "plate sebagai jig" layak.
 - Catatan: uji simulasi jalur masuk (`verify_insert.py`) untuk shell tanpa alur melaporkan konektor micro-USB, USB-C, dan hidung jack menyangkut dinding; pada rakitan fisik Anda tumpukan sudah berhasil masuk, jadi alur tidak diperlukan.
 
-Membuat ulang: `python make_case.py -- v2c_penahan_sekrup --penahan`, `python verify_penahan.py v2c_penahan_sekrup .`, `python render_penahan.py -- ...`.
+Membuat ulang: `python make_case.py -- v2c_penahan_sekrup --penahan`, `python verify_penahan.py v2c_penahan_sekrup .`, `python render_pemasangan.py -- v2c_penahan_sekrup v3_baterai/_ref/asm v2c_penahan_sekrup/render`, `python gambar_pemasangan.py v2c_penahan_sekrup v2c_penahan_sekrup/render v2c_penahan_sekrup/Gambar_Pemasangan_Penahan_A3.png`.
