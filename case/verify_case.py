@@ -137,11 +137,12 @@ else:
     for sx_, sd in RK["pos"]:
         if True:
             yy = wall_y(sd) + sd * 1.5                                          # tengah ketebalan dinding (3 mm)
-            ok_h &= not solid(shell, (sx_, yy, ZS)) and not solid(shell, (sx_ + 1.6, yy, ZS)) and not solid(shell, (sx_, yy, ZS + 1.6))
-            ok_h &= solid(shell, (sx_ + 2.0, yy, ZS)) and solid(shell, (sx_, yy, ZS + 2.0)) and solid(shell, (sx_, yy, ZS - 2.0))
-            ok_h &= solid(shell, (sx_, yy, ZS - 1.7 - 0.5))                  # masih ada dinding di bawah lubang (rusuk belakang tidak terbuka)
-    report("4 lubang sekrup samping Ø3.4 menembus dinding Atas/Bawah; dinding di bawah lubang utuh", ok_h, f"(Z sumbu = {ZS:.1f}, tepi bawah lubang Z = {ZS - 1.7:.2f} > bidang belah {S['z']['split']:.1f})")
-    report("lubang sekrup samping tidak memotong bidang belah", ZS - RK["clear_d"] / 2 > S["z"]["split"] + 0.5)
+            rr = RK["clear_d"] / 2
+            ok_h &= not solid(shell, (sx_, yy, ZS)) and not solid(shell, (sx_ + rr - 0.3, yy, ZS)) and not solid(shell, (sx_, yy, ZS + rr - 0.3))
+            ok_h &= solid(shell, (sx_ + rr + 0.3, yy, ZS)) and solid(shell, (sx_, yy, ZS + rr + 0.3)) and solid(shell, (sx_, yy, ZS - rr - 0.3))
+            ok_h &= solid(shell, (sx_, yy, S["z"]["split"] + 0.3))                  # tepi belakang dinding di bawah lubang masih utuh
+    report(f"4 lubang sekrup samping Ø{RK['clear_d']:.1f} menembus dinding Atas/Bawah; dinding di bawah lubang utuh", ok_h, f"(Z sumbu = {ZS:.1f}, tepi bawah lubang Z = {ZS - RK['clear_d'] / 2:.2f}, bidang belah {S['z']['split']:.1f})")
+    report("lubang sekrup samping tidak memotong bidang belah (sisa dinding >= 0.5 mm di bawah lubang)", ZS - RK["clear_d"] / 2 > S["z"]["split"] + 0.5)
     # (c) lug di plate: padat, menempel dinding dengan celah, pilot sejajar lubang dinding, puncak di bawah PCB
     ok_l = True; gaps = []
     for lg in RK["lugs"]:

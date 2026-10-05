@@ -108,7 +108,7 @@ PILOT_D, CLEAR_D, CSK_D, CSK_DEPTH, SCREW_LEN = 2.7, 3.4, 6.4, 1.6, 8.0
 # Boss sekrup di dinding (BOSS_*) menghalangi PCB/TFT (lebar 56 mm vs celah 45 mm di antara boss) sehingga tumpukan tidak bisa
 # dimasukkan dari belakang. Di varian ini boss dipindah ke back plate (LUG) dan plate dikunci dengan 4 sekrup M3 dari SAMPING
 # (menembus dinding Atas/Bawah, masuk ke lug). Kepala sekrup bulat (pan/button) duduk di permukaan dinding (tanpa countersink).
-RAKIT = dict(z=2.0, clear_d=3.4, pilot_d=2.6, lug_w=9.0, lug_in=6.4, lug_top=4.4, lug_gap=0.25, pilot_depth=5.2,
+RAKIT = dict(z=2.4, clear_d=4.0, pilot_d=2.6, lug_w=9.0, lug_in=6.4, lug_top=4.8, lug_gap=0.25, pilot_depth=5.2,
              screw_len=8.0, head_d=5.6, head_h=2.3, groove_clear=0.25, groove_side=0.3)
 # posisi 4 sekrup samping (x, sisi). Atas (+Y): x = +-23. Bawah (-Y): x = +-23 (v3, rongga Bawah lebar, tanpa alur) atau x = +-9
 # (v2: alur micro-USB di x = 24.1 ... 32.5 terlalu dekat ke x = 23; x = +-9 juga bebas dari kaki soket ESP32 di x = 15.6 dan

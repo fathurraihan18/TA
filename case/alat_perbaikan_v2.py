@@ -4,7 +4,7 @@ python alat_perbaikan_v2.py <folder_v2b>
 
 Hasil di <folder_v2b>/perbaikan_v2_tercetak/:
   bagian_dibuang_dari_shell_v2.stl   volume yang harus dibuang dari shell v2 (selisih shell v2 - shell v2b; tidak ada yang ditambah)
-  jig_bor_ATAS.stl, jig_bor_BAWAH.stl  penuntun bor Ø3.4 untuk 4 lubang sekrup samping (pelana di tepi belakang dinding)
+  jig_bor_ATAS.stl, jig_bor_BAWAH.stl  penuntun bor Ø4.0 untuk 4 lubang sekrup samping (pelana di tepi belakang dinding)
 Jig: flange rata di tepi belakang dinding (bidang belah Z = -0.5), pelat tegak menempel muka luar dinding dengan lubang di Z = 2.0,
 dua tab masuk ke sudut rongga (menentukan posisi X). Cetak dengan flange di meja, tanpa support.
 """
@@ -48,9 +48,9 @@ def jig(side, xs):
     for xa, xb in ((xe - 3.0, xe), (-xe, -xe + 3.0)):                                   # tab di kedua ujung rongga
         parts.append(box(xa, xb, *y_tab, Z_SPLIT, Z_SPLIT + 8.0))
     j = union(parts)
-    holes = [cyl_y(x, R["z"], 3.6 / 2, y_plate[0] - 0.5, y_plate[1] + 0.5) for x in xs]
+    holes = [cyl_y(x, R["z"], (R["clear_d"] + 0.2) / 2, y_plate[0] - 0.5, y_plate[1] + 0.5) for x in xs]
     j = diff(j, holes)
-    # tanda: celah bor Ø3.4 -> lubang jig Ø3.6 (bor 3.5 mm pas)
+    # lubang jig = diameter lubang dinding + 0.2 mm (bor 4.0 mm untuk lubang Ø4.0)
     return j
 
 
