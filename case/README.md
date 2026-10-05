@@ -16,6 +16,7 @@ Dibuat parametrik dengan Blender (`bpy` 5.0.1). Satuan **mm**.
 | `2_BackPlate_siap_cetak.stl` | Back plate, sisi luar menghadap meja |
 | `gambar_teknik/` | **Gambar teknik A3 untuk draf TA** (PDF 2 halaman + PNG) dan skrip pembuatnya |
 | `v2b_sekrup_samping/` | **v2 yang dapat dirakit**: tanpa boss di dinding, sekrup samping, alur konektor, plus alat perbaikan shell v2 yang sudah tercetak. Lihat README di dalamnya |
+| `v2c_penahan_sekrup/`, `v3c_penahan_sekrup/` | **Plate dan 4 sekrup dari belakang TIDAK berubah (v2/v3)**: boss diganti 4 penahan terpisah yang dilem ke dinding sesudah tumpukan masuk (tumpukan lalu tidak bisa ditarik keluar tanpa memotong penahan) |
 | `v3b_sekrup_samping/` | **v3 (baterai tanpa menumpuk) yang dapat dirakit** |
 | `v3_baterai/` | **v3: casing yang memuat baterai tanpa menumpuk modul** (STL siap cetak, .blend, gambar teknik A3, gambar eksplode + penempatan baterai, pratinjau). Lihat `v3_baterai/README.md` |
 | `perakitan/` | Skrip gambar eksplode berwarna + daftar komponen + penempatan baterai (hasil v2 di folder ini: PDF A3 2 halaman; hasil v3 dengan model komponen nyata di `v3_baterai/perakitan/`, 3 halaman) |

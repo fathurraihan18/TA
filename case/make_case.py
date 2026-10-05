@@ -23,6 +23,8 @@ from mathutils import Vector, Matrix
 OUT = sys.argv[sys.argv.index("--") + 1] if "--" in sys.argv else (sys.argv[1] if len(sys.argv) > 1 else ".")
 os.makedirs(OUT, exist_ok=True)
 BAY_ON = "--bay" in sys.argv          # v3: rongga sisi BAWAH diperlebar supaya baterai 10x34x50 muat tanpa menumpuk modul
+PENAHAN_ON = "--penahan" in sys.argv  # boss sekrup dipisah dari shell: 4 PENAHAN (blok) dicetak terpisah, dilem ke dinding SESUDAH tumpukan masuk;
+                                      # back plate dan 4 sekrup M3 x 8 flat head dari belakang TIDAK berubah (sama seperti v2)
 RAKIT_ON = "--rakit" in sys.argv      # dapat dirakit: tumpukan TFT+PCB masuk LURUS dari belakang (tanpa boss di dinding),
                                       # plate dikunci 4 sekrup SAMPING ke lug di plate, alur di dinding untuk konektor yang menjorok
 
@@ -285,7 +287,7 @@ for sxp in SCREW_X:
     for side in (+1, -1):
         wall_in = wall_y(side)
         y_a, y_b = sorted([wall_in + side * 0.3, wall_in - side * BOSS_IN])
-        if not RAKIT_ON:
+        if not (RAKIT_ON or PENAHAN_ON):
             boss_blocks.append(box("boss_sekrup", sxp - BOSS_W / 2, sxp + BOSS_W / 2, y_a, y_b, Z_SPLIT, BOSS_TOP))
         screw_pos.append((sxp, wall_in - side * 3.5))
 
@@ -328,7 +330,9 @@ ghole = cyl("ghole", gy, gz, g["hole"] / 2, gx(U) - 0.5, x_pocket_bot + 0.1, "X"
 cut_all(shell, [pocket, ghole])
 
 # --- lubang pilot sekrup penutup (tembus ke atas boss supaya M3x8 tidak mentok)
-if not RAKIT_ON:
+if PENAHAN_ON:
+    pass                                                              # tanpa boss dan tanpa pilot di shell
+elif not RAKIT_ON:
     pilots = [cyl("pilot", px, py, PILOT_D / 2, Z_SPLIT - 0.2, BOSS_TOP + 0.2, "Z", n=32) for px, py in screw_pos]
     cut_all(shell, pilots)
 else:
@@ -437,6 +441,23 @@ if BAY_ON:
         union_all(plate, [box(f"stop{k}", xa, xb, stop_y0, stop_y1, Z_SPLIT - 0.01, STOP_TOP)])
     CRADLE = dict(ribs_x=list(RIB_X), rib_w=RIB_W, y=[rib_y0, rib_y1], top=rib_top, stop_w=STOP_W, stop_top=STOP_TOP, stop_y=[stop_y0, stop_y1])
 
+# --- varian --penahan: 4 blok penahan sekrup terpisah (pengganti boss), posisi dan ukuran sama dengan boss v2 tetapi celah lem 0.3 mm ke dinding
+PENAHAN = None
+PEN_GAP = 0.3
+if PENAHAN_ON:
+    blocks = []
+    for sxp in SCREW_X:
+        for side in (+1, -1):
+            wall_in = wall_y(side)
+            ya, yb = sorted([wall_in - side * PEN_GAP, wall_in - side * (PEN_GAP + BOSS_IN)])
+            b_ = box("penahan", sxp - BOSS_W / 2, sxp + BOSS_W / 2, ya, yb, Z_SPLIT, BOSS_TOP)
+            bop(b_, cyl("pilot_pen", sxp, wall_in - side * 3.5, PILOT_D / 2, Z_SPLIT - 0.2, BOSS_TOP + 0.2, "Z", n=32), "DIFFERENCE")
+            blocks.append((b_, sxp, side))
+    PENAHAN = dict(blocks=[dict(x=sxp, side=sd, y=[min(wall_y(sd) - sd * PEN_GAP, wall_y(sd) - sd * (PEN_GAP + BOSS_IN)),
+                                                   max(wall_y(sd) - sd * PEN_GAP, wall_y(sd) - sd * (PEN_GAP + BOSS_IN))],
+                                 pilot=[sxp, wall_y(sd) - sd * 3.5]) for _, sxp, sd in blocks],
+                   gap=PEN_GAP, w=BOSS_W, d=BOSS_IN, top=BOSS_TOP, pilot_d=PILOT_D)
+
 # ============================================================ REFERENSI (ghost) ==
 ghosts = {}
 
@@ -528,6 +549,26 @@ export_stl(shell, os.path.join(OUT, "1_Shell_Depan_siap_cetak.stl"), rot_x180=Tr
 export_stl(plate, os.path.join(OUT, "2_BackPlate_siap_cetak.stl"), shift_z=-Z_PLATE0)                     # sisi luar menghadap meja
 chk = os.path.join(OUT, "_ref")
 os.makedirs(chk, exist_ok=True)
+if PENAHAN_ON:
+    # (1) tata letak cetak: 4 salinan berjajar, sisi belakang di meja, blok sisi Bawah diputar 180 derajat (bentuk sama)
+    print_objs = []
+    for k, (b_, sxp, side) in enumerate(blocks):
+        o_ = b_.copy(); o_.data = b_.data.copy()
+        bpy.context.scene.collection.objects.link(o_)
+        cy_ = wall_y(side) - side * (PEN_GAP + BOSS_IN / 2)
+        M_ = Matrix.Translation(((k - 1.5) * 16.0, 0, -Z_SPLIT)) @ (Matrix.Rotation(math.pi, 4, "Z") if side < 0 else Matrix.Identity(4)) @ Matrix.Translation((-sxp, -cy_, 0))
+        o_.data.transform(M_)
+        print_objs.append(o_)
+    pb_ = print_objs[0]
+    for o_ in print_objs[1:]:
+        bop(pb_, o_, "UNION")
+    export_stl(pb_, os.path.join(OUT, "3_Penahan_Sekrup_x4_siap_cetak.stl"))
+    # (2) posisi desain (untuk uji)
+    base_ = blocks[0][0]
+    for b_, _, _ in blocks[1:]:
+        bop(base_, b_, "UNION")
+    base_.name = "Penahan_desain"
+    export_stl(base_, os.path.join(chk, "penahan_design.stl"))
 export_stl(shell, os.path.join(chk, "shell_design.stl"))
 export_stl(plate, os.path.join(chk, "plate_design.stl"))
 for nm, ob in ghosts.items():
@@ -542,7 +583,7 @@ summary = dict(
     micro=MICRO, jack=JACK, usbc=USBC, gland=GLAND, switch=SWITCH, screws=screw_pos, window=[WIN_W, WIN_H, WIN_CX, WIN_CY],
     belt=dict(slot_w=BELT_SLOT_W, slot_l=BELT_SLOT_L, slot_cx=SLOT_CX, wing=WING),
     screw=dict(len=SCREW_LEN, boss_top=BOSS_TOP, csk_depth=CSK_DEPTH, plate_t=PLATE_T), ch=CH, out_r=OUT_R, plate_r=PR,
-    rakit=(dict(RAKIT, lugs=LUGS, grooves=GROOVES, pos=RAKIT_POS) if RAKIT_ON else None),
+    rakit=(dict(RAKIT, lugs=LUGS, grooves=GROOVES, pos=RAKIT_POS) if RAKIT_ON else None), penahan=PENAHAN,
 )
 json.dump(summary, open(os.path.join(OUT, "_ref", "summary.json"), "w"), indent=1)
 print("OK", OUT)
