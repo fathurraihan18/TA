@@ -88,18 +88,16 @@ def fixed_sections():
             "Warna lead: merah RA, kuning LA, hijau RL. Penempatan RA dan LA di bawah klavikula, RL di perut kanan bawah. Sisi kanan pasien berada di kiri gambar.",
             "Konektor kabel PPG, kapasitor, dan konektor kecil pada PCB adalah ilustrasi dari foto dan Gerber."]),
     ]
-    J = dict(code="J-1", title="Gambar jurnal: penempatan elektroda dan klip PPG", blocks=[
-        dict(kind="para", text="Berkas: Fig_Elektroda_2kolom (180 mm) dan Fig_Elektroda_1kolom (88 mm) dalam PDF, SVG, TIFF, dan PNG 600 dpi."),
-        dict(kind="sub", text="Caption (EN)"),
-        dict(kind="para", text="Fig. X. Placement of the three ECG electrodes and the finger-clip PPG sensor. (a) Anterior view (patient's right on the reader's left): RA (red) below the right clavicle, "
-                               "LA (yellow) below the left clavicle, and RL (green, reference) on the right lower abdomen. The three leads join one cable that plugs into the AD8232 jack of the wearable device "
-                               "worn on the belt, and the MAX30102 finger clip is worn on the right index finger. (b) Top and side views of a disposable snap electrode (Ø45 mm foam pad, hydrogel, snap stud) with "
-                               "the colour-coded lead connector. (c) Lead labels, colours and positions."),
-        dict(kind="sub", text="Caption (ID)"),
-        dict(kind="para", text="Gambar X. Penempatan tiga elektroda EKG dan sensor PPG jepit jari. (a) Tampak anterior (sisi kanan pasien berada di kiri pembaca): RA (merah) di bawah klavikula kanan, "
-                               "LA (kuning) di bawah klavikula kiri, dan RL (hijau, referensi) di perut kanan bawah. Ketiga kabel menyatu menjadi satu kabel yang ditancapkan ke jack AD8232 pada perangkat di sabuk, "
-                               "sedangkan klip MAX30102 dipasang pada jari telunjuk kanan. (b) Tampak atas dan samping elektroda sekali pakai berpengait snap (pad busa Ø45 mm, hidrogel, kancing snap) dengan "
-                               "konektor berkode warna. (c) Label, warna, dan posisi lead."),
+    J = dict(code="J-1", title="Gambar jurnal satu per satu", blocks=[
+        dict(kind="para", text="Folder 08_Jurnal_Satu_Per_Satu berisi 16 gambar terpisah (PNG 600 dpi dan PDF), semua berlabel bahasa Inggris dengan huruf 8 sampai 12 pt pada ukuran cetak. "
+                               "Lebar gambar 88 mm (satu kolom) atau 180 mm (dua kolom). Caption lengkap ada di Captions_EN.txt dan Figure_Captions_EN.pdf."),
+        dict(kind="table", header=["Gambar", "Isi", "Lebar (mm)"], widths=[3.2, 7.0, 1.4], align=["l", "l", "c"], rows=[
+            ["Fig01", "Tampak eksplode casing", "180"], ["Fig02", "Tampak eksplode elektronik", "180"], ["Fig03", "Sistem lengkap", "180"],
+            ["Fig04", "Penempatan elektroda pada torso laki-laki", "88"], ["Fig05", "Detail elektroda (atas dan samping)", "88"], ["Fig06", "Kabel 3 lead dan plug 3,5 mm", "180"],
+            ["Fig07", "Kode warna lead", "180"], ["Fig08", "ESP32 DevKit C V4", "180"], ["Fig09", "Modul AD8232", "180"], ["Fig10", "Modul MAX30102 HW-605", "180"],
+            ["Fig11", "Cable gland PG7 dan saklar KCD11", "180"], ["Fig12", "Casing tampak depan dan belakang", "180"], ["Fig13", "Dimensi casing", "180"],
+            ["Fig14", "Tampak eksplode klip jari", "180"], ["Fig15", "Klip jari saat dipakai", "180"], ["Fig16", "Tampilan layar", "180"]]),
+        dict(kind="para", text="Teks pada tampilan layar (Fig03, Fig16) berbahasa Indonesia karena itu tampilan asli alat."),
     ])
     V = dict(code="V", title="Verifikasi", blocks=[
         dict(kind="sub", text="Berkas cetak (semua mesh rapat)"),

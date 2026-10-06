@@ -11,7 +11,7 @@ from PIL import Image
 from common import *
 import ket
 
-FIG, OUT = sys.argv[1:3]
+FIG, OUT = sys.argv[1:3]            # FIG = salah satu berkas di folder jurnal (dipakai untuk menemukan folder)
 os.makedirs(OUT, exist_ok=True)
 
 LIST = [("PERAKITAN", [(2, "P-1", "Tampak eksplode dan nomor komponen"), (3, "P-2", "Sistem lengkap dan penempatan pada pengguna")]),
@@ -45,12 +45,13 @@ def daftar():
 def jurnal():
     fig, ax = new_sheet()
     ax.text(210, 286.5, "Penempatan elektroda RA, LA, RL dan klip PPG pada pengguna", fontsize=12, fontweight="bold", ha="center", va="center")
-    im = Image.open(FIG).convert("RGB")
-    bx, by, bw, bh = 12, 64, 396, 212
-    k = min(bw / im.width, bh / im.height)
-    w, h = im.width * k, im.height * k
-    x0, y0 = bx + (bw - w) / 2, by + (bh - h) / 2
-    ax.imshow(np.asarray(im), extent=(x0, x0 + w, y0, y0 + h), origin="upper", zorder=2, interpolation="lanczos")
+    d = os.path.dirname(FIG)
+    for fn, bx, by, bw, bh in (("Fig04_Electrode_placement_male_torso.png", 20, 62, 150, 215), ("Fig05_Electrode_details.png", 180, 100, 210, 150)):
+        im = Image.open(os.path.join(d, fn)).convert("RGB")
+        k = min(bw / im.width, bh / im.height)
+        w, h = im.width * k, im.height * k
+        x0, y0 = bx + (bw - w) / 2, by + (bh - h) / 2
+        ax.imshow(np.asarray(im), extent=(x0, x0 + w, y0, y0 + h), origin="upper", zorder=2, interpolation="lanczos")
     title_block(ax, "Gambar jurnal: penempatan elektroda", "RA merah, LA kuning, RL hijau; klip MAX30102", 16, 16, scale="Skala: tidak diskalakan", ket="J-1")
     return fig
 

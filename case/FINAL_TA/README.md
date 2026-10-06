@@ -4,7 +4,7 @@ Perangkat: implementasi LightGBM ke ESP32 berbasis sinyal ECG dan PPG (layar TFT
 baterai PALO 103450, cable gland PG7, saklar KCD11, klip pulse oximeter MAX30102 HW-605, tiga elektroda EKG). Gambar bertanggal 05-10-2026, satuan mm, lembar A3 landscape.
 
 ## Dua berkas utama
-- `00_Gambar_Lengkap/Gambar_Lengkap_ECG_PPG_A3.pdf`: semua gambar dalam satu PDF, 16 halaman (daftar, perakitan, komponen, gambar teknik cover, gambar teknik klip, gambar jurnal), dengan penanda bab.
+- `00_Gambar_Lengkap/Gambar_Lengkap_ECG_PPG_A3.pdf`: semua gambar dalam satu PDF, 16 halaman (daftar, perakitan, komponen, gambar teknik cover, gambar teknik klip, penempatan elektroda), dengan penanda bab.
 - `00_Gambar_Lengkap/Keterangan_Gambar_ECG_PPG_A4.pdf`: semua teks yang dulu menumpuk di lembar gambar (daftar komponen, spesifikasi, catatan, langkah, tabel), dengan huruf besar.
   Kolom judul tiap lembar menyebut bagian yang sesuai, misalnya "Keterangan: bagian K-3".
 
@@ -18,7 +18,7 @@ Tulisan pada lembar gambar sekarang 1,5 sampai 1,8 kali lebih besar dan hanya me
 | `03_Gambar_Teknik_Klip/` | C-1 potongan dan dimensi, C-2 eksplode dan pemakaian klip pulse oximeter. |
 | `04_Gambar_Perakitan/` | P-1 eksplode bernomor, P-2 sistem lengkap dan penempatan pada pengguna. |
 | `05_Render_3D/` | Render PNG siap pakai (latar transparan kecuali `Sistem_Lengkap.png`). |
-| `06_Gambar_Jurnal/` | Gambar penempatan elektroda RA, LA, RL pada torso laki-laki: 1 kolom (88 mm) dan 2 kolom (180 mm), PDF, SVG, TIFF, PNG 600 dpi, plus `Caption_Fig_Elektroda.txt` (EN dan ID). |
+| `08_Jurnal_Satu_Per_Satu/` | 16 gambar jurnal terpisah, label bahasa Inggris, huruf 8 sampai 12 pt pada ukuran cetak, lebar 88 mm (satu kolom) atau 180 mm (dua kolom). Masing-masing PNG 600 dpi + PDF. Caption: `Captions_EN.txt` dan `Figure_Captions_EN.pdf`. |
 | `07_STL_siap_cetak/` | Casing (shell, back plate, penahan) dan klip (A, B, C, D) beserta `MD5.txt`. |
 | `VERIFIKASI.txt` | Hasil uji mesh, plate v2, celah penahan, dan tabrakan rakitan. |
 | `_render/` | Sumber render yang dipakai lembar. |
@@ -33,9 +33,10 @@ Elektroda: merah = RA, kuning = LA, hijau = RL. RA di bawah klavikula kanan, LA 
 2. File .sldprt HW-605 hanya berisi papan polos, jadi kemasan sensor dan pad dimodelkan ulang dari foto dan datasheet.
 3. Ukuran mur gland (AF 15,4 x 4,4 mm) dan tonjolan rocker saklar adalah perkiraan. Ukur yang asli.
 4. Baterai 34 mm lebih panjang dari ruang kosong 27,8 mm. Digambar rebah dan menumpuk 6,1 mm di atas modul. Di rakitan nyata baterai miring dan perlu isolasi atau busa 1 mm.
-5. Torso adalah model 3D untuk ilustrasi (kulit, rambut dada, tahi lalat, otot), bukan model medis. Label gambar jurnal berbahasa Inggris. Ganti "Fig. X" pada caption dengan nomor di naskah.
+5. Torso adalah model 3D laki-laki untuk ilustrasi (otot, kulit, rambut dada, tahi lalat, celana panjang), bukan model medis. Label gambar jurnal berbahasa Inggris, kecuali teks pada layar alat yang memang berbahasa Indonesia. Nomor gambar pada caption (Fig. 1 sampai 16) perlu disesuaikan dengan naskah.
 
 ## Membangun ulang
 Render (butuh Blender `bpy`, di `case/final/`): `r_komponen.py`, `r_elektroda.py`, `r_manusia.py`, `render_sistem.py`, `r_klip.py`, lalu `post_alpha.py 28 <png>` untuk membersihkan alfa lantai.
+Gambar jurnal: `jurnal_gambar.py <FINAL_TA>` (pustaka `jfig.py`) dan `jurnal_caption.py`.
 Lembar dan PDF: `bash bangun_pdf.sh <python>` (butuh matplotlib, pillow, trimesh, shapely, reportlab, pypdf).
 Uji: `verify_perakitan.py` dan `../verify_penahan.py`.

@@ -78,6 +78,18 @@ body.data.materials.append(skin)
 deps = bpy.context.evaluated_depsgraph_get()
 bvh = BVHTree.FromObject(body, deps)
 
+# ----------------------------------------------------------------- celana panjang (dibuat setelah BVH kulit, supaya elektroda dan perangkat tetap mengikuti kulit)
+trousers = build_trousers(voxel=2.4 if VOX < 3 else 3.2)
+fab = bpy.data.materials.new("kain_celana"); fab.use_nodes = True
+fb_ = fab.node_tree.nodes["Principled BSDF"]
+fb_.inputs["Base Color"].default_value = (0.07, 0.085, 0.125, 1); fb_.inputs["Roughness"].default_value = 0.82
+for nm_, v_ in (("Sheen Weight", 0.5), ("Sheen Roughness", 0.5)):
+    if nm_ in fb_.inputs: fb_.inputs[nm_].default_value = v_
+nz_ = fab.node_tree.nodes.new("ShaderNodeTexNoise"); nz_.inputs["Scale"].default_value = 3.2; nz_.inputs["Detail"].default_value = 3
+bp_ = fab.node_tree.nodes.new("ShaderNodeBump"); bp_.inputs["Strength"].default_value = 0.25; bp_.inputs["Distance"].default_value = 0.5
+fab.node_tree.links.new(nz_.outputs["Fac"], bp_.inputs["Height"]); fab.node_tree.links.new(bp_.outputs["Normal"], fb_.inputs["Normal"])
+trousers.data.materials.append(fab)
+
 
 def surf(origin, direction):
     loc, nrm, idx, dist = bvh.ray_cast(Vector(origin), Vector(direction))
@@ -183,9 +195,9 @@ for k_, (mx_, mz_, mr_) in enumerate(((-40, 300, 1.7), (62, 198, 1.3), (-132, 15
 decal("pusar", 0, 0, 5.5, 1.5, 0.3)
 
 # ----------------------------------------------------------------- sabuk (pita melingkar di sekitar pinggang)
-fa, fb, fc = prof_fn()
+fa, fb, fc = prof_fn_tr()
 bm = bmesh.new()
-zlev = [-66, -56, -46, -36, -26, -18]
+zlev = [-66, -56, -46, -36, -26, -20]
 ro, ri = [], []
 nseg = 120
 for z in zlev:
@@ -194,7 +206,7 @@ for z in zlev:
     for k in range(nseg):
         t = 2 * math.pi * k / nseg; ct, st = math.cos(t), math.sin(t)
         xo = (a_ + 4.5) * math.copysign(abs(ct) ** (2 / EXP_SUP), ct); yo = c_ + (b_ + 4.5) * math.copysign(abs(st) ** (2 / EXP_SUP), st)
-        xi_ = (a_ + 0.2) * math.copysign(abs(ct) ** (2 / EXP_SUP), ct); yi_ = c_ + (b_ + 0.2) * math.copysign(abs(st) ** (2 / EXP_SUP), st)
+        xi_ = (a_ + 0.1) * math.copysign(abs(ct) ** (2 / EXP_SUP), ct); yi_ = c_ + (b_ + 0.1) * math.copysign(abs(st) ** (2 / EXP_SUP), st)
         r_out.append(bm.verts.new((xo, yo, z))); r_in.append(bm.verts.new((xi_, yi_, z)))
     ro.append(r_out); ri.append(r_in)
 for R_ in (ro, ri):
@@ -218,7 +230,7 @@ pd, nd = skin_at(xd, zd)
 yv = (Vector((0, 0, 1)) - nd * nd.z).normalized()
 xv = yv.cross(nd).normalized()
 Rm = Matrix(((xv.x, yv.x, nd.x), (xv.y, yv.y, nd.y), (xv.z, yv.z, nd.z)))
-t_dev = pd + nd * 4.7 - Rm @ Vector((0, 0, -3.5))                 # sisi belakang plate (z = -3,5) di atas sabuk
+t_dev = pd + nd * (4.7 + TR) - Rm @ Vector((0, 0, -3.5))                 # sisi belakang plate (z = -3,5) di atas sabuk
 DEV = bpy.data.objects.new("PERANGKAT", None); bpy.context.scene.collection.objects.link(DEV)
 DEV.matrix_world = Matrix.Translation(t_dev) @ Rm.to_4x4()
 for k in DEVK:

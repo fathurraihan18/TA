@@ -17,13 +17,23 @@ PROF = [
 EXP_SUP = 2.35                                                # eksponen superellipse (sedikit lebih "kotak" daripada elips)
 
 
+TR = 5.0                                                    # tebal celana (mm) di atas kulit
+PROF_TR = [(-250, 162, 92, 8), (-215, 162, 96, 8), (-170, 158, 101, 8), (-130, 157, 101, 8), (-90, 156, 100, 8), (-30, 152, 98, 4), (30, 148, 96, 2)]
+LEG = dict(c0=(80.0, 8.0, -215.0), c1=(86.0, 12.0, -540.0), r0=84.0, r1=57.0)          # paha laki-laki: pusat x per sisi, y, z; jari-jari atas dan bawah
+
+
+def prof_fn_tr():
+    z = np.array([p[0] for p in PROF_TR], float)
+    return (PchipInterpolator(z, [p[1] for p in PROF_TR]), PchipInterpolator(z, [p[2] for p in PROF_TR]), PchipInterpolator(z, [p[3] for p in PROF_TR]))
+
+
 def prof_fn():
     z = np.array([p[0] for p in PROF], float)
     return (PchipInterpolator(z, [p[1] for p in PROF]), PchipInterpolator(z, [p[2] for p in PROF]), PchipInterpolator(z, [p[3] for p in PROF]))
 
 
-def loft_torso(name="torso_loft", z0=-480, z1=520, dz=8, nseg=96):
-    fa, fb, fc = prof_fn()
+def loft_torso(name="torso_loft", z0=-150, z1=520, dz=8, nseg=96, fns=None):
+    fa, fb, fc = fns or prof_fn()
     bm = bmesh.new()
     rings = []
     zs = np.arange(z0, z1 + 0.1, dz)
@@ -129,6 +139,42 @@ def build_body(voxel=2.6, smooth_iter=14):
     bpy.ops.object.modifier_apply(modifier="smooth")
     sculpt_front(ob)
     for p in ob.data.polygons: p.use_smooth = True
+    return ob
+
+
+def build_trousers(voxel=2.4, smooth_iter=8):
+    """celana panjang: pinggang sampai ujung bawah, dua kaki terpisah mulai selangkangan; kain dengan kerutan halus."""
+    parts = [loft_torso("celana_loft", z0=-250, z1=-20, dz=6, fns=prof_fn_tr())]
+    for s in (-1, 1):
+        c0 = (s * LEG["c0"][0], LEG["c0"][1], LEG["c0"][2]); c1 = (s * LEG["c1"][0], LEG["c1"][1], LEG["c1"][2])
+        parts.append(capsule(f"kaki{s}", c0, c1, LEG["r0"] + TR, LEG["r1"] + TR, 40))
+    for o in bpy.context.selected_objects: o.select_set(False)
+    for o in parts: o.select_set(True)
+    bpy.context.view_layer.objects.active = parts[0]
+    bpy.ops.object.join()
+    ob = bpy.context.active_object
+    ob.name = "celana"
+    rm = ob.modifiers.new("remesh", "REMESH"); rm.mode = "VOXEL"; rm.voxel_size = voxel; rm.adaptivity = 0.0
+    bpy.ops.object.modifier_apply(modifier="remesh")
+    sm = ob.modifiers.new("smooth", "SMOOTH"); sm.factor = 0.6; sm.iterations = smooth_iter
+    bpy.ops.object.modifier_apply(modifier="smooth")
+    # kerutan kain: gelombang lunak di sekitar pinggul dan lutut, alur kancing, lipatan depan kaki
+    me = ob.data; n = len(me.vertices)
+    co = np.zeros(n * 3); me.vertices.foreach_get("co", co); co = co.reshape(-1, 3)
+    nr = np.zeros(n * 3); me.vertices.foreach_get("normal", nr); nr = nr.reshape(-1, 3)
+    x, y, z = co[:, 0], co[:, 1], co[:, 2]
+    front = np.clip((-nr[:, 1] - 0.15) / 0.5, 0, 1)
+    d = 1.1 * np.sin(z * 0.075 + x * 0.05) * np.cos(x * 0.045 - z * 0.03 + 0.8)
+    d += 0.9 * np.sin(z * 0.19 + np.abs(x) * 0.11 + 1.2) * np.exp(-((z + 330) / 130) ** 2)            # kerutan di lutut
+    d += 1.3 * np.exp(-((z + 140) / 70) ** 2) * np.sin(np.hypot(x, y) * 0.09 + z * 0.05)
+    for s_ in (-1, 1):
+        zz = np.clip((z + 215) / -325.0, 0, 1)
+        xc = s_ * (LEG["c0"][0] + (LEG["c1"][0] - LEG["c0"][0]) * zz)
+        d -= 1.7 * front * np.exp(-((x - xc) / 2.6) ** 2) * ((z < -230) & (z > -520))                  # lipatan setrika
+    d -= 1.4 * front * np.exp(-(x / 2.2) ** 2) * ((z > -190) & (z < -22))                               # alur kancing
+    co2 = co + nr * d[:, None]
+    me.vertices.foreach_set("co", co2.reshape(-1)); me.update()
+    for p_ in ob.data.polygons: p_.use_smooth = True
     return ob
 
 
