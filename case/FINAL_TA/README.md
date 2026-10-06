@@ -19,6 +19,7 @@ Tulisan pada lembar gambar sekarang 1,5 sampai 1,8 kali lebih besar dan hanya me
 | `04_Gambar_Perakitan/` | P-1 eksplode bernomor, P-2 sistem lengkap dan penempatan pada pengguna. |
 | `05_Render_3D/` | Render PNG siap pakai (latar transparan kecuali `Sistem_Lengkap.png`). |
 | `08_Jurnal_Satu_Per_Satu/` | 16 gambar jurnal terpisah, label bahasa Inggris, huruf 8 sampai 12 pt pada ukuran cetak, lebar 88 mm (satu kolom) atau 180 mm (dua kolom). Masing-masing PNG 600 dpi + PDF. Caption: `Captions_EN.txt` dan `Figure_Captions_EN.pdf`. |
+| `09_Foto_Latar_Polos/` | Dua foto alat tampak atas dengan latar polos (putih dan abu muda), lembar perbandingan dengan foto asli, dan `Catatan.txt`. Skrip di `case/final/foto_latar/`. |
 | `07_STL_siap_cetak/` | Casing (shell, back plate, penahan) dan klip (A, B, C, D) beserta `MD5.txt`. |
 | `VERIFIKASI.txt` | Hasil uji mesh, plate v2, celah penahan, dan tabrakan rakitan. |
 | `_render/` | Sumber render yang dipakai lembar. |

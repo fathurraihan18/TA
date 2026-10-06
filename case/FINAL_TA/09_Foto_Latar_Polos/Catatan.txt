@@ -1,0 +1,27 @@
+Foto alat dengan latar polos (tampak atas)
+
+Isi folder
+- Foto1_Latar_Putih.png, Foto1_Latar_Abu.png : foto landscape 1280 x 720
+- Foto2_Latar_Putih.png, Foto2_Latar_Abu.png : foto portrait 720 x 1280
+- Perbandingan_Foto1.png, Perbandingan_Foto2.png : asli, latar putih, latar abu muda berdampingan
+
+Yang dikerjakan
+- Lantai berubin diganti latar polos. Putih diisi nilai 246 dari 255, abu muda 196.
+- Perangkat, gland, saklar, klip PPG, kabel putih PPG, tiga kabel abu, dan tiga elektroda (merah, hijau, kuning) tetap ada.
+  Piksel bagian dalam benda besar tidak diubah sama sekali (selisih dengan foto asli 0).
+- Kabel abu dan bayangan lembutnya dipertahankan dengan membandingkan terang tiap piksel terhadap lantai di sekitarnya,
+  jadi bukan digambar ulang. Bayangan di bawah perangkat dan klip tetap ada, hanya lebih tipis di atas latar terang.
+- Dibuang: garis sambungan ubin, sorotan lampu di lantai, dan noda lantai di bawah elektroda merah foto 1.
+- Resolusi sama dengan foto asli. Ditambah sedikit derau agar butirnya sama dengan foto aslinya.
+- Tidak memakai model AI generatif. Semuanya komposit biasa (masker benda, rasio terhadap lantai, penghalusan tepi).
+
+Pemeriksaan
+- Inti kabel gelap yang ada di foto asli tampak lagi di hasil: 96,6 persen (foto 1) dan 94,9 persen (foto 2).
+  Sisanya adalah garis sambungan ubin yang memang dibuang. Jalur kabel putih PPG terlihat di semua titik yang diperiksa.
+
+Yang perlu diketahui
+- Perangkat dan klip berwarna putih kebiruan di foto asli. Di atas latar putih, bodinya terlihat keabu-abuan. Pakai versi latar abu kalau ingin bodi terlihat lebih jelas.
+- Layar foto 2 memantulkan lampu. Pantulan itu bagian dari foto asli dan tidak diubah.
+- Kalau nanti difoto ulang di kertas atau kain putih polos dengan cahaya merata, hasilnya tetap lebih rapi daripada hasil sunting ini.
+
+Skrip: case/final/foto_latar/ (bg1, bg2, seam, bg3, cek). Jalankan dari folder yang berisi foto1.jpg dan foto2.jpg.
