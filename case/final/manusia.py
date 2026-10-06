@@ -10,9 +10,9 @@ from lib import *
 
 # ------------------------------------------------------------- profil penampang torso: z -> (setengah lebar a, setengah kedalaman b, pergeseran y c; + = ke belakang)
 PROF = [
-    (-480, 128, 84, 8), (-400, 142, 88, 8), (-300, 156, 94, 8), (-170, 170, 100, 8), (-90, 172, 100, 8), (-30, 158, 96, 4), (30, 146, 94, 2), (100, 150, 99, 0),
-    (170, 160, 108, -1), (240, 171, 118, -3), (300, 177, 116, -3), (355, 182, 102, 0), (400, 170, 84, 6),
-    (440, 120, 70, 12), (468, 70, 62, 14), (520, 58, 58, 18),
+    (-480, 124, 82, 8), (-400, 136, 86, 8), (-300, 144, 90, 8), (-170, 150, 94, 8), (-90, 150, 94, 8), (-30, 146, 92, 4), (30, 142, 90, 2), (100, 152, 98, 0),
+    (170, 168, 110, -1), (240, 181, 121, -3), (300, 187, 118, -3), (355, 189, 102, 0), (400, 174, 84, 6),
+    (440, 122, 70, 12), (468, 72, 62, 14), (520, 60, 58, 18),
 ]
 EXP_SUP = 2.35                                                # eksponen superellipse (sedikit lebih "kotak" daripada elips)
 
@@ -79,24 +79,40 @@ def capsule(name, p0, p1, r0, r1, n=24):
     return ob
 
 
+HAND_ROT = 25.0                                               # derajat: tangan berputar ke dalam agar punggung tangan terlihat dari depan
+WRIST = (264.0, -12.0)
+
+
+def hand_pt(side, x, y, z):
+    """titik pada tangan (bingkai asal, tangan lurus) -> setelah diputar HAND_ROT derajat di sekitar sumbu tegak melalui pergelangan."""
+    th = math.radians(-side * HAND_ROT)
+    px, py = side * WRIST[0], WRIST[1]
+    dx, dy = x - px, y - py
+    return (px + dx * math.cos(th) - dy * math.sin(th), py + dx * math.sin(th) + dy * math.cos(th), z)
+
+
 def build_body(voxel=2.6, smooth_iter=14):
     parts = [loft_torso()]
     # otot dada (pektoralis), bahu (deltoid) dan trapezius
     for s in (-1, 1):
-        parts.append(ellipsoid(f"delt{s}", (s * 190, 2, 366), (52, 56, 60), (0, 0, 0)))
+        parts.append(ellipsoid(f"delt{s}", (s * 197, 2, 362), (57, 60, 64), (0, 0, 0)))
         parts.append(ellipsoid(f"trap{s}", (s * 112, 20, 420), (108, 48, 38), (0, s * 20, 0)))
         parts.append(ellipsoid(f"trap2{s}", (s * 60, 22, 452), (60, 42, 34), (0, s * 22, 0)))
-        parts.append(ellipsoid(f"lat{s}", (s * 122, 40, 215), (60, 38, 118), (0, 0, s * 6)))
+        parts.append(ellipsoid(f"lat{s}", (s * 130, 40, 205), (62, 38, 124), (0, 0, s * 7)))
         parts.append(capsule(f"klav_a{s}", (s * 12, -71, 421), (s * 80, -66, 417), 6.5, 6.3))          # klavikula (tonjolan halus)
         parts.append(capsule(f"klav_b{s}", (s * 80, -66, 417), (s * 150, -38, 409), 6.3, 6.0))
-        # lengan atas, lengan bawah, tangan
-        sh = (s * 190, 2, 366); el = (s * 244, 8, 98); wr = (s * 262, -12, -128)
-        parts.append(capsule(f"lengan_atas{s}", sh, el, 48, 36))
-        parts.append(capsule(f"lengan_bawah{s}", el, wr, 36, 25))
-        parts.append(ellipsoid(f"telapak{s}", (s * 266, -16, -166), (19, 42, 52), (0, 0, 0)))
+        # lengan atas, lengan bawah, tangan (otot: biceps, triceps, brachioradialis; tangan sedikit berputar ke dalam)
+        sh = (s * 197, 2, 362); el = (s * 248, 8, 98); wr = (s * 264, -12, -128)
+        parts.append(capsule(f"lengan_atas{s}", sh, el, 50, 38))
+        parts.append(ellipsoid(f"biceps{s}", (s * 228, -14, 262), (30, 36, 80), (0, 0, s * 6)))
+        parts.append(ellipsoid(f"triceps{s}", (s * 234, 22, 250), (30, 30, 84), (0, 0, s * 6)))
+        parts.append(capsule(f"lengan_bawah{s}", el, wr, 39, 26))
+        parts.append(ellipsoid(f"brakioradialis{s}", (s * 252, -6, 48), (30, 33, 68), (0, 0, s * 3)))
+        hp = lambda x, y, z: hand_pt(s, x, y, z)
+        parts.append(ellipsoid(f"telapak{s}", hp(s * 266, -16, -166), (17, 40, 50), (0, 0, -s * HAND_ROT)))
         for k, (yo, ln) in enumerate(((-33, 92), (-12, 72), (9, 66), (29, 56))):
-            parts.append(capsule(f"jari{s}_{k}", (s * 266, yo - 16, -205), (s * 266, yo - 16 + (3 if k == 0 else 0), -205 - ln), 9.4, 7.2, 16))
-        parts.append(capsule(f"jempol{s}", (s * 257, -60, -150), (s * 257, -78, -205), 11.5, 8.2, 16))
+            parts.append(capsule(f"jari{s}_{k}", hp(s * 266, yo - 16, -205), hp(s * 266, yo - 16 + (3 if k == 0 else 0), -205 - ln), 9.0, 6.8, 16))
+        parts.append(capsule(f"jempol{s}", hp(s * 257, -60, -150), hp(s * 257, -78, -205), 11.0, 7.8, 16))
     # leher
     parts.append(capsule("leher", (0, 16, 466), (0, 20, 560), 57, 53))
     # gabungkan lalu voxel remesh
@@ -129,17 +145,22 @@ def sculpt_front(ob):
     def g(cx, cz, sx, sz, amp):
         return amp * np.exp(-0.5 * (((x - cx) / sx) ** 2 + ((z - cz) / sz) ** 2))
     for s_ in (-1, 1):
-        d += g(s_ * 90, 272, 58, 40, 3.2)                                 # otot dada
-        d += g(s_ * 92, 230, 52, 5.5, -1.6)                               # tepi bawah otot dada
-        d += g(s_ * 150, 300, 22, 50, -1.1)                               # alur dada-deltoid
-        for zc in (-5, 45, 95, 145):                                      # blok rektus abdominis
-            d += g(s_ * 27, zc + 20, 19, 17, 1.5)
-        d += g(s_ * 150, 90, 14, 70, 0.8)                                 # oblik
-    d += g(0, 285, 7, 72, -1.9)                                           # alur tulang dada
-    d += g(0, 60, 4, 105, -1.5)                                           # linea alba
+        d += g(s_ * 86, 262, 62, 44, 5.4 * (1 + 0.05 * s_))               # pektoralis mayor (menonjol; sedikit tidak simetris)
+        d += g(s_ * 92, 218, 60, 5.0, -3.2)                               # tepi bawah pektoralis (tegas, tanpa lipatan payudara)
+        d += g(s_ * 150, 300, 22, 50, -1.6)                               # alur dada-deltoid
+        d += g(s_ * 128, 330, 30, 40, 1.4)                                # tepi pektoralis ke aksila
+        for zc in (-5, 45, 95, 145):                                      # blok rektus abdominis (six-pack)
+            d += g(s_ * 28, zc + 20, 20, 18, 2.6)
+        for zc in (170, 130, 90):                                         # serratus anterior
+            d += g(s_ * 135, zc, 11, 6, 1.0)
+        d += g(s_ * 150, 90, 14, 70, 1.0)                                 # oblik
+    d += g(0, 285, 7, 72, -2.6)                                           # alur tulang dada
+    d += g(0, 60, 4, 110, -2.0)                                           # linea alba
     for zc in (15, 65, 115):
-        d += g(0, zc, 50, 3.0, -0.9)                                      # alur melintang perut
-    co2 = co + nr * (1.7 * d * front)[:, None]
+        d += g(0, zc, 54, 3.2, -1.5)                                      # alur melintang perut
+    d += g(0, 420, 40, 8, -1.2)                                           # takik suprasternal
+    d += 0.45 * (np.sin(x * 0.045 + 1.3) * np.cos(z * 0.037 + 0.4) + 0.6 * np.sin(x * 0.11 + z * 0.07))   # undulasi halus: permukaan tidak sempurna
+    co2 = co + nr * (1.8 * d * front)[:, None]
     me.vertices.foreach_set("co", co2.reshape(-1))
     me.update()
 

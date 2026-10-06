@@ -1,0 +1,439 @@
+[
+ {
+  "code": "K-1",
+  "title": "ESP32 DevKit C V4 (ESP32-WROOM-32, 38 pin)",
+  "blocks": [
+   {
+    "kind": "sub",
+    "text": "Spesifikasi"
+   },
+   {
+    "kind": "para",
+    "text": "Mikrokontroler dual-core 240 MHz dengan Wi-Fi dan Bluetooth, flash 4 MB. Dipakai untuk akuisisi sinyal ECG/PPG dan inferensi LightGBM."
+   },
+   {
+    "kind": "para",
+    "text": "Papan 54,6 x 28,5 x 1,6 mm; tinggi total 13,7 mm (modul 3,8 mm di atas PCB, pin 8,2 mm di bawah PCB)."
+   },
+   {
+    "kind": "para",
+    "text": "Header 2 x 19 pin, pitch 2,54 mm, jarak antarbaris 25,4 mm. Menancap pada 2 soket female PCB utama."
+   },
+   {
+    "kind": "sub",
+    "text": "Posisi pada rakitan"
+   },
+   {
+    "kind": "para",
+    "text": "Pusat X = +27,7 mm dari pusat pola baut. PCB ESP32 di Z 15,1 ... 16,7 mm, atas modul di Z = 20,5 mm."
+   },
+   {
+    "kind": "para",
+    "text": "Port micro-USB menghadap sisi Bawah casing (lubang 12,2 x 8,2 mm). Plug beserta overmold harus muat di lubang itu."
+   },
+   {
+    "kind": "sub",
+    "text": "Keterangan bagian"
+   },
+   {
+    "kind": "items",
+    "lines": [
+     "ESP32-WROOM-32 (perisai logam + antena PCB)",
+     "Tombol EN dan BOOT",
+     "Konektor micro-USB",
+     "Header pin 2 x 19 (emas)"
+    ],
+    "numbered": true
+   },
+   {
+    "kind": "sub",
+    "text": "Sumber model dan catatan keakuratan"
+   },
+   {
+    "kind": "para",
+    "text": "STEP unggahan pengguna (esp32-wroom-30pin-c-type) diadaptasi menjadi DevKit C V4: 19 pin per baris (38 pin), konektor USB-C diganti micro-USB, PCB dinaikkan 2,55 mm."
+   },
+   {
+    "kind": "para",
+    "text": "Ukuran 54,6 x 28,5 mm dan tinggi komponen dihitung langsung dari model. Gambar 3D hanya ilustrasi dan alat bantu cek kecocokan; datasheet resmi tetap acuan."
+   }
+  ]
+ },
+ {
+  "code": "K-2",
+  "title": "Modul AD8232 ECG (SparkFun) + jack 3,5 mm",
+  "blocks": [
+   {
+    "kind": "sub",
+    "text": "Spesifikasi"
+   },
+   {
+    "kind": "para",
+    "text": "Front-end ECG 1 lead dengan deteksi elektroda lepas (LO+, LO-). Keluaran analog dibaca ADC ESP32."
+   },
+   {
+    "kind": "para",
+    "text": "Papan 35,56 x 27,94 mm; PCB beserta komponen setebal 2,3 mm; jack TRS 3,5 mm menonjol 2,3 mm di tepi Atas."
+   },
+   {
+    "kind": "para",
+    "text": "Header 6 pin (GND, 3,3V, OUTPUT, LO-, LO+, SDN) pitch 2,54 mm. Pin dipendekkan agar masuk header PCB 3,8 mm (Z 6,6 ... 10,4)."
+   },
+   {
+    "kind": "sub",
+    "text": "Elektroda (kabel 3 lead, plug 3,5 mm)"
+   },
+   {
+    "kind": "para",
+    "text": "Merah = RA (right arm), kuning = LA (left arm), hijau = RL (right leg, referensi). Lihat K-4."
+   },
+   {
+    "kind": "sub",
+    "text": "Posisi pada rakitan"
+   },
+   {
+    "kind": "para",
+    "text": "PCB di Z 10,4 ... 12,7 mm; jack pusat di Z = 15,0 mm, 61,3 mm dari tepi Kiri PCB. Hidung jack menembus dinding Atas (lubang 7,2 mm)."
+   },
+   {
+    "kind": "sub",
+    "text": "Keterangan bagian"
+   },
+   {
+    "kind": "items",
+    "lines": [
+     "Jack TRS 3,5 mm (elektroda)",
+     "IC AD8232",
+     "Header 6 pin",
+     "Lubang baut M3 (4 buah)"
+    ],
+    "numbered": true
+   },
+   {
+    "kind": "sub",
+    "text": "Fungsi pin header 6 pin (pitch 2,54 mm)"
+   },
+   {
+    "kind": "table",
+    "header": [
+     "Pin",
+     "Fungsi"
+    ],
+    "rows": [
+     [
+      "GND",
+      "ground (0 V)"
+     ],
+     [
+      "3,3V",
+      "catu daya modul 3,3 V"
+     ],
+     [
+      "OUTPUT",
+      "keluaran analog sinyal ECG ke ADC ESP32"
+     ],
+     [
+      "LO-",
+      "deteksi elektroda lepas (-)"
+     ],
+     [
+      "LO+",
+      "deteksi elektroda lepas (+)"
+     ],
+     [
+      "SDN",
+      "shutdown (aktif rendah)"
+     ]
+    ],
+    "widths": [
+     1.2,
+     6.0
+    ],
+    "align": [
+     "c",
+     "l"
+    ]
+   },
+   {
+    "kind": "sub",
+    "text": "Sumber model dan catatan keakuratan"
+   },
+   {
+    "kind": "para",
+    "text": "Model Thingiverse #5330841 (.blend unggahan pengguna). Satuan meter diubah ke mm, pin logam dipotong pada Z = 6,6 mm (kedalaman header PCB). Posisi diselaraskan dengan header dan jack pada Gerber."
+   },
+   {
+    "kind": "para",
+    "text": "Ukuran papan 35,56 x 27,94 mm dihitung dari model. Gambar 3D hanya ilustrasi; datasheet resmi tetap acuan."
+   }
+  ]
+ },
+ {
+  "code": "K-3",
+  "title": "Sensor PPG MAX30102 - papan HW-605",
+  "blocks": [
+   {
+    "kind": "sub",
+    "text": "Spesifikasi"
+   },
+   {
+    "kind": "para",
+    "text": "Sensor detak jantung dan SpO2: LED merah dan inframerah, fotodioda, antarmuka I2C (alamat 0x57), catu 3,3 V."
+   },
+   {
+    "kind": "para",
+    "text": "Papan 13,5 x 18,0 x 1,6 mm; tinggi total 3,2 mm; jendela sensor sekitar 5,6 x 3,3 mm di tengah papan."
+   },
+   {
+    "kind": "para",
+    "text": "Pad solder yang dipakai: VIN, SCL, SDA, GND (kabel AWG 4 inti merah/kuning/putih/hitam). INT, IRD, RD tidak dipakai."
+   },
+   {
+    "kind": "sub",
+    "text": "Posisi pada rakitan"
+   },
+   {
+    "kind": "para",
+    "text": "Terpasang di klip jari (rahang A/B, tutup C, pegas, baut M3). Jendela sensor menghadap bantalan jari, kabel keluar lewat gland PG7. Lihat gambar teknik klip."
+   },
+   {
+    "kind": "sub",
+    "text": "Keterangan bagian"
+   },
+   {
+    "kind": "items",
+    "lines": [
+     "Jendela sensor (LED + fotodioda)",
+     "Pad solder (kuning)",
+     "Komponen SMD"
+    ],
+    "numbered": true
+   },
+   {
+    "kind": "sub",
+    "text": "Sumber model dan catatan keakuratan"
+   },
+   {
+    "kind": "para",
+    "text": "Berkas SENSOR_DE_LA_PULSERA.sldprt (SolidWorks, 'SENSOR-DIBUJO') hanya berisi papan polos hitam dengan empat lubang pojok, tanpa paket sensor. Kemasan MAX30102 dan pad dimodelkan ulang dari foto dan datasheet."
+   },
+   {
+    "kind": "para",
+    "text": "Ketelitian sekitar +-0,3 mm. Ukur papan asli lalu sesuaikan make_hw605.py. Gambar 3D hanya ilustrasi; datasheet resmi tetap acuan."
+   }
+  ]
+ },
+ {
+  "code": "K-4",
+  "title": "Elektroda EKG 3 lead + kabel dan plug 3,5 mm",
+  "blocks": [
+   {
+    "kind": "sub",
+    "text": "Kode warna, label, dan posisi pada tubuh"
+   },
+   {
+    "kind": "table",
+    "header": [
+     "Lead",
+     "Warna",
+     "Fungsi",
+     "Posisi pada tubuh"
+    ],
+    "rows": [
+     [
+      "RA",
+      "Merah",
+      "Right Arm (lengan kanan)",
+      "Di bawah klavikula kanan"
+     ],
+     [
+      "LA",
+      "Kuning",
+      "Left Arm (lengan kiri)",
+      "Di bawah klavikula kiri"
+     ],
+     [
+      "RL",
+      "Hijau",
+      "Right Leg (referensi)",
+      "Perut kanan bawah, dekat krista iliaka"
+     ]
+    ],
+    "widths": [
+     0.9,
+     1.2,
+     3.4,
+     4.2
+    ],
+    "align": [
+     "c",
+     "c",
+     "l",
+     "l"
+    ]
+   },
+   {
+    "kind": "sub",
+    "text": "Bagian elektroda"
+   },
+   {
+    "kind": "items",
+    "lines": [
+     "Pad busa putih Ø45 mm, tebal 1,2 mm.",
+     "Gel hidrogel biru Ø34 mm (lobus Ø19 mm di sekitar snap), tebal 0,25 mm.",
+     "Konektor snap berkode warna dengan relief tarik, tinggi 6,4 mm; tinggi total elektroda 8,8 mm. Kawat abu-abu.",
+     "Plug TRS 3,5 mm: barel logam 14 mm dengan 2 cincin isolator, badan 10,3 mm, relief 11 mm, diameter 6,5 mm."
+    ],
+    "numbered": true
+   },
+   {
+    "kind": "sub",
+    "text": "Sumber model dan catatan keakuratan"
+   },
+   {
+    "kind": "para",
+    "text": "Bentuk elektroda mengacu pada model Sketchfab \"ECG Electrode Dot (single, sticky, wire)\" oleh RescueFit VLE (pad busa putih tipis, gel biru, snap krom) dan foto kabel lead yang dipakai (konektor snap berkode warna dengan relief tarik, kawat abu-abu). Geometri dibuat ulang untuk gambar ini."
+   },
+   {
+    "kind": "para",
+    "text": "Ukuran pad Ø45 mm, tinggi konektor 8,8 mm, dan plug 3,5 mm adalah ukuran model. Ukur elektroda asli dengan jangka sorong. Warna kabel 3 lead AD8232: merah RA, kuning LA, hijau RL. Cocokkan dengan tulisan spidol pada konektor."
+   }
+  ]
+ },
+ {
+  "code": "K-5",
+  "title": "Cable gland PG7 dan saklar rocker KCD11",
+  "blocks": [
+   {
+    "kind": "sub",
+    "text": "Cable gland PG7"
+   },
+   {
+    "kind": "items",
+    "lines": [
+     "Ulir PG7 Ø12,5 mm, panjang ulir 8 mm; untuk kabel Ø3 - 6,5 mm (kabel PPG 4 inti Ø4,0 mm).",
+     "Mur segi enam AF 15,4 mm, tebal 4,4 mm, ditanam di kantong dinding Kanan. Nilai ini bawaan, ukur mur yang dipakai.",
+     "Lubang casing Ø12,8 mm, tonjolan luar 4,8 mm; pusat 19,6 mm dari tepi Bawah casing dan Z = 16,7 mm dari bidang belakang.",
+     "Bagian: kepala segi enam AF 15,0 (tebal 5,0), tutup bergalur 12,0 mm, cincin seal, mur AF 15,0 x 4,4."
+    ],
+    "numbered": true
+   },
+   {
+    "kind": "sub",
+    "text": "Saklar rocker KCD11"
+   },
+   {
+    "kind": "items",
+    "lines": [
+     "Rocker mini 10 x 15 mm, 2 kaki, 3 A 250 VAC / 6 A 125 VAC (tertera pada badan), snap-in dari dalam.",
+     "Lubang panel 14,1 x 9,1 mm. Dinding Atas dipertipis menjadi 1,6 mm dari dalam; badan butuh ruang 14 x 9 x 12,5 mm.",
+     "Pusat 49,5 mm dari tepi Kiri casing, Z = 24,5 mm. Rocker merah bergerak miring.",
+     "Bezel 14,8 mm, badan 13,8 mm, panjang total 23,7 mm."
+    ],
+    "numbered": true
+   },
+   {
+    "kind": "sub",
+    "text": "Letak pada casing"
+   },
+   {
+    "kind": "para",
+    "text": "Saklar di dinding Atas (jack AD8232 di x = -12,3 mm dan saklar di x = +3,0 mm dari pusat pola baut). Gland di dinding Kanan, di bawah lubang USB-C. Kabel PPG 4 inti masuk lewat gland ke konektor 4 pin di PCB. Kabel elektroda masuk lewat jack AD8232 di sisi Atas."
+   },
+   {
+    "kind": "sub",
+    "text": "Sumber model dan catatan keakuratan"
+   },
+   {
+    "kind": "para",
+    "text": "Gland dan saklar dimodelkan dari spesifikasi PG7 dan KCD11 serta foto komponen yang dipakai (gland putih, saklar hitam dengan rocker merah). Ukuran mur gland dan tonjolan rocker adalah perkiraan, ukur komponen asli dengan jangka sorong."
+   },
+   {
+    "kind": "para",
+    "text": "Parameter casing (lubang, kantong mur, ruang saklar) diambil dari make_case.py (cover v2 final) sehingga sama dengan gambar teknik."
+   }
+  ]
+ },
+ {
+  "code": "K-6",
+  "title": "Komponen pendukung: layar TFT, PCB utama, powerbank, baterai",
+  "blocks": [
+   {
+    "kind": "sub",
+    "text": "1. Layar TFT 3,5\" ILI9488"
+   },
+   {
+    "kind": "para",
+    "text": "Selubung model: 98,00 x 56,34 x 7,13 mm."
+   },
+   {
+    "kind": "items",
+    "lines": [
+     "480 x 320 piksel, antarmuka SPI + touch. Modul 98,0 x 56,34 mm, area aktif 73,44 x 48,96 mm, kaca touch 85 x 55 x 3 mm.",
+     "Tampilan pada gambar mengikuti foto layar alat (ARMOR - Aritmia Monitoring v1.0): ECG, PPG, detak jantung, SpO2, status irama."
+    ],
+    "numbered": false
+   },
+   {
+    "kind": "sub",
+    "text": "2. PCB utama (custom)"
+   },
+   {
+    "kind": "para",
+    "text": "Selubung model: 98,03 x 56,16 x 10,10 mm."
+   },
+   {
+    "kind": "items",
+    "lines": [
+     "98,03 x 56,16 mm, 4 lubang baut M3. Soket female ESP32 2 x 19 pin (jarak baris 25,4 mm), header AD8232 6 pin, konektor JST saklar 2 pin, konektor 4 pin PPG.",
+     "Model disederhanakan dari Gerber (outline, lubang bor, soket, header)."
+    ],
+    "numbered": false
+   },
+   {
+    "kind": "sub",
+    "text": "3. Modul powerbank 5 V"
+   },
+   {
+    "kind": "para",
+    "text": "Selubung model: 26,10 x 20,40 x 12,60 mm."
+   },
+   {
+    "kind": "items",
+    "lines": [
+     "Pengisian baterai dan keluaran 5 V. Port USB-C menghadap dinding Kanan (pusat 18,1 mm dari tepi Atas PCB).",
+     "Modul sekitar 26,1 x 20,4 mm, tinggi komponen 12,6 mm (kapasitor tertinggi). Model dari foto dan Gerber (perkiraan)."
+    ],
+    "numbered": false
+   },
+   {
+    "kind": "sub",
+    "text": "4. Baterai Li-ion PALO 103450"
+   },
+   {
+    "kind": "para",
+    "text": "Selubung model: 55,69 x 34,00 x 10,12 mm."
+   },
+   {
+    "kind": "items",
+    "lines": [
+     "3,7 V 2000 mAh, 10 x 34 x 50 mm, konektor JST 2 pin (kabel merah dan hitam). Diletakkan rebah di sisi Bawah PCB.",
+     "Baterai 34 mm, sedangkan ruang kosong sisi Bawah v2 hanya 27,8 mm. Lihat catatan penempatan di keterangan perakitan P-1."
+    ],
+    "numbered": false
+   },
+   {
+    "kind": "sub",
+    "text": "Sumber model dan catatan keakuratan"
+   },
+   {
+    "kind": "para",
+    "text": "TFT, PCB utama, powerbank, dan baterai adalah model sederhana untuk cek kecocokan (bentuk dasar dan komponen terbesar). Ukuran luar diambil dari lembar data, Gerber, dan hasil ukur fisik."
+   },
+   {
+    "kind": "para",
+    "text": "Detail kecil (konektor, kapasitor) hanya ilustrasi. Datasheet resmi tetap acuan."
+   }
+  ]
+ }
+]

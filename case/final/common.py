@@ -12,6 +12,33 @@ FS = 6.6
 LW = 0.35
 plt.rcParams.update({"font.family": "DejaVu Sans", "pdf.fonttype": 42})
 
+# ---- skala teks global: semua ax.text diperbesar agar terbaca saat lembar A3 dikecilkan ke halaman naskah (keterangan panjang dipindah ke berkas lain)
+import matplotlib.axes as _mpl_axes
+from contextlib import contextmanager
+TEXT_SCALE = float(os.environ.get("TEXT_SCALE", "1.8"))
+_scale_on = [True]
+_orig_text = _mpl_axes.Axes.text
+
+
+def _scaled_text(self, x, y, s, fontdict=None, **kw):
+    if _scale_on[0]:
+        kw["fontsize"] = kw.get("fontsize", plt.rcParams["font.size"]) * TEXT_SCALE
+    return _orig_text(self, x, y, s, fontdict, **kw)
+
+
+_mpl_axes.Axes.text = _scaled_text
+
+
+@contextmanager
+def raw_text():
+    """teks di dalam blok ini tidak diperbesar (kolom judul)."""
+    _scale_on[0] = False
+    try:
+        yield
+    finally:
+        _scale_on[0] = True
+
+
 
 def f1(v, d=1):
     return f"{abs(v):.{d}f}".replace(".", ",")
@@ -79,19 +106,20 @@ def label(ax, x, y, text, size=8.5, weight="bold", ha="center", color="k"):
     ax.text(x, y, text, fontsize=size, fontweight=weight, ha=ha, va="center", zorder=7, color=color)
 
 
-def title_block(ax, title, subtitle, page, of, scale="Skala: lihat dimensi", right_line="Bahan: sesuai komponen"):
+def title_block(ax, title, subtitle, page, of, scale="Skala: lihat dimensi", right_line="Bahan: sesuai komponen", ket=None):
     x0, y0, w, h = 255, 15, 157, 44
-    ax.add_patch(Rectangle((x0, y0), w, h, fill=True, fc="white", lw=0.9, ec="k", zorder=11))
-    for yy in (y0 + 11, y0 + 22, y0 + 33):
-        hline(ax, x0, x0 + w, yy, lw=0.5, zorder=12)
-    vline(ax, x0 + 98, y0, y0 + 22, lw=0.5, zorder=12)
-    ax.text(x0 + 3, y0 + 39, title, fontsize=9.5, fontweight="bold", va="center", zorder=13)
-    ax.text(x0 + 3, y0 + 27.5, "Tugas Akhir: Implementasi LightGBM ke ESP32 berbasis sinyal ECG dan PPG", fontsize=6.6, va="center", zorder=13)
-    ax.text(x0 + 3, y0 + 16.5, subtitle, fontsize=6.6, va="center", zorder=13)
-    ax.text(x0 + 3, y0 + 5.5, f"Satuan: mm   |   {scale}", fontsize=6.6, va="center", zorder=13)
-    ax.text(x0 + 101, y0 + 16.5, right_line, fontsize=6.6, va="center", zorder=13)
-    ax.text(x0 + 101, y0 + 5.5, f"Halaman {page}/{of}   |   {DATE}", fontsize=6.6, va="center", zorder=13)
-    ax.text(x0 + 3, y0 - 3, "Digambar: ........................   NIM: ........................   Toleransi umum: +-0,2 mm (FDM)", fontsize=5.8, va="center", zorder=13)
+    with raw_text():
+        ax.add_patch(Rectangle((x0, y0), w, h, fill=True, fc="white", lw=0.9, ec="k", zorder=11))
+        for yy in (y0 + 11, y0 + 22, y0 + 33):
+            hline(ax, x0, x0 + w, yy, lw=0.5, zorder=12)
+        vline(ax, x0 + 98, y0, y0 + 22, lw=0.5, zorder=12)
+        ax.text(x0 + 3, y0 + 39, title, fontsize=10.5, fontweight="bold", va="center", zorder=13)
+        ax.text(x0 + 3, y0 + 27.5, "Tugas Akhir: Implementasi LightGBM ke ESP32 berbasis sinyal ECG dan PPG", fontsize=6.6, va="center", zorder=13)
+        ax.text(x0 + 3, y0 + 16.5, subtitle, fontsize=6.6, va="center", zorder=13)
+        ax.text(x0 + 3, y0 + 5.5, f"Satuan: mm   |   {scale}", fontsize=6.6, va="center", zorder=13)
+        ax.text(x0 + 101, y0 + 16.5, right_line if not ket else f"Keterangan: bagian {ket}", fontsize=6.6, va="center", zorder=13)
+        ax.text(x0 + 101, y0 + 5.5, f"Halaman {page}/{of}   |   {DATE}", fontsize=6.6, va="center", zorder=13)
+        ax.text(x0 + 3, y0 - 3, "Digambar: ........................   NIM: ........................   Toleransi umum: +-0,2 mm (FDM)", fontsize=5.8, va="center", zorder=13)
 
 
 def rgba_on_white(path):

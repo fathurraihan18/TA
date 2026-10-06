@@ -10,8 +10,8 @@ Skrip uji       : case/verify_penahan.py, case/final/verify_perakitan.py (trimes
    Klip_PPG/B_RahangAtas_siap_cetak.stl              67,00 x 26,00 x 17,50 mm   10017 mm3   md5 8e5f61a74a27906b6988973a0deb0b36
    Klip_PPG/C_TutupBawah_siap_cetak.stl              51,10 x 21,50 x  3,30 mm    2149 mm3   md5 00285f4c1a7ec8c8b615b42b306c1351
    Klip_PPG/D_ShimPegas_siap_cetak.stl                5,60 x  5,60 x  1,00 mm      17 mm3   md5 2c26491922a3f057c82028100e652c7c
-   A, B, C identik byte-demi-byte dengan berkas yang Anda unggah (md5 sama).
-   Shell dan plate bagian dari STL yang sama dengan model gambar teknik; plate identik dengan plate v2 yang sudah Anda cetak (md5 ed9ea8f1).
+   A, B, C identik byte demi byte dengan berkas STL klip yang diunggah (md5 sama).
+   Shell dan plate bagian dari STL yang sama dengan model gambar teknik; plate identik dengan plate v2 yang sudah dicetak (md5 ed9ea8f1).
 
 2. Casing final = v2 + perubahan minimal (verify_penahan.py: SEMUA LOLOS)
    - Back plate dan 4 lubang sekrup M3 x 8 flat head sama dengan v2 (selisih 0 mm3).

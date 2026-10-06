@@ -20,21 +20,59 @@ RH = int(A[3]) if len(A) > 3 else 2100
 VOX = float(os.environ.get("VOX", "2.6"))
 
 reset()
-sc = setup_cycles((RW, RH), SAMP, transparent=True, world_strength=0.55)
-# cahaya: kunci besar dari kiri-atas-depan, pengisi lembut dari kanan, kontur dari belakang-atas
-add_area((1000, -1900, 1500), (0, 0, 120), 1400, 6.5e6)
-add_area((-1500, -1500, 400), (0, 0, 100), 1800, 1.6e6)
-add_area((0, 1200, 1400), (0, 0, 200), 900, 1.2e6)
+sc = setup_cycles((RW, RH), SAMP, transparent=True, world_strength=0.42)
+# cahaya: kunci hangat dan agak sempit dari kiri-atas-depan (membentuk otot dada dan perut), pengisi dingin lemah dari kanan, kontur dari belakang-atas
+add_area((-1250, -2000, 1700), (0, 0, 150), 950, 1.25e7, color=(1.0, 0.93, 0.84))
+add_area((1700, -1500, 300), (0, 0, 100), 1800, 1.6e6, color=(0.86, 0.91, 1.0))
+add_area((0, 1300, 1500), (0, 0, 200), 900, 1.6e6)
 
 # ----------------------------------------------------------------- tubuh
 body = build_body(voxel=VOX, smooth_iter=12)
-skin = mat("kulit", (0.86, 0.68, 0.57), 0.48, 0.0, **{"Subsurface Weight": 0.22, "Subsurface Scale": 3.0, "Specular IOR Level": 0.35})
-# bump halus (pori / ketidakteraturan kulit)
-nt = skin.node_tree
-b = nt.nodes["Principled BSDF"]
-tex = nt.nodes.new("ShaderNodeTexNoise"); tex.inputs["Scale"].default_value = 0.35; tex.inputs["Detail"].default_value = 8
-bump = nt.nodes.new("ShaderNodeBump"); bump.inputs["Strength"].default_value = 0.08; bump.inputs["Distance"].default_value = 1.0
-nt.links.new(tex.outputs["Fac"], bump.inputs["Height"]); nt.links.new(bump.outputs["Normal"], b.inputs["Normal"])
+def make_skin():
+    """kulit: variasi warna skala besar (kemerahan di bahu dan dada atas), noise kekasaran, bump pori halus, subsurface scattering."""
+    m = bpy.data.materials.new("kulit"); m.use_nodes = True
+    nt = m.node_tree; nd = nt.nodes; lk = nt.links
+    b = nd["Principled BSDF"]
+    tc = nd.new("ShaderNodeTexCoord")
+    n1 = nd.new("ShaderNodeTexNoise"); n1.inputs["Scale"].default_value = 0.006; n1.inputs["Detail"].default_value = 3
+    n2 = nd.new("ShaderNodeTexNoise"); n2.inputs["Scale"].default_value = 0.035; n2.inputs["Detail"].default_value = 6
+    cr = nd.new("ShaderNodeValToRGB")
+    cr.color_ramp.elements[0].color = (0.74, 0.52, 0.42, 1); cr.color_ramp.elements[1].color = (0.86, 0.66, 0.55, 1)
+    cr.color_ramp.elements[0].position = 0.35; cr.color_ramp.elements[1].position = 0.65
+    lk.new(tc.outputs["Object"], n1.inputs["Vector"]); lk.new(tc.outputs["Object"], n2.inputs["Vector"])
+    mx = nd.new("ShaderNodeMath"); mx.operation = "ADD"; mx.inputs[1].default_value = 0.0
+    mix = nd.new("ShaderNodeMixRGB"); mix.blend_type = "MIX"; mix.inputs[0].default_value = 0.22
+    lk.new(n1.outputs["Fac"], cr.inputs["Fac"])
+    lk.new(cr.outputs["Color"], mix.inputs[1])
+    mix.inputs[2].default_value = (0.82, 0.58, 0.48, 1)
+    lk.new(n2.outputs["Fac"], mix.inputs[0])
+    # kemerahan: gradien tinggi (bahu, dada atas lebih merah) dan sisi samping sedikit lebih gelap
+    sep = nd.new("ShaderNodeSeparateXYZ"); lk.new(tc.outputs["Object"], sep.inputs["Vector"])
+    mr = nd.new("ShaderNodeMapRange"); mr.inputs["From Min"].default_value = 230; mr.inputs["From Max"].default_value = 470
+    mr.inputs["To Min"].default_value = 0.0; mr.inputs["To Max"].default_value = 0.30
+    lk.new(sep.outputs["Z"], mr.inputs["Value"])
+    red = nd.new("ShaderNodeMixRGB"); red.blend_type = "MIX"
+    lk.new(mr.outputs["Result"], red.inputs[0]); lk.new(mix.outputs["Color"], red.inputs[1]); red.inputs[2].default_value = (0.80, 0.46, 0.40, 1)
+    lk.new(red.outputs["Color"], b.inputs["Base Color"])
+    b.inputs["Roughness"].default_value = 0.46
+    rg = nd.new("ShaderNodeMapRange"); rg.inputs["To Min"].default_value = 0.38; rg.inputs["To Max"].default_value = 0.58
+    lk.new(n2.outputs["Fac"], rg.inputs["Value"]); lk.new(rg.outputs["Result"], b.inputs["Roughness"])
+    b.inputs["Subsurface Weight"].default_value = 0.35
+    b.inputs["Subsurface Radius"].default_value = (1.0, 0.38, 0.25)
+    b.inputs["Subsurface Scale"].default_value = 2.4
+    b.inputs["Specular IOR Level"].default_value = 0.42
+    b.inputs["Coat Weight"].default_value = 0.06; b.inputs["Coat Roughness"].default_value = 0.35
+    # bump: pori (voronoi) + kerutan halus (noise)
+    vo = nd.new("ShaderNodeTexVoronoi"); vo.inputs["Scale"].default_value = 0.9; lk.new(tc.outputs["Object"], vo.inputs["Vector"])
+    n3 = nd.new("ShaderNodeTexNoise"); n3.inputs["Scale"].default_value = 0.22; n3.inputs["Detail"].default_value = 10; lk.new(tc.outputs["Object"], n3.inputs["Vector"])
+    hm = nd.new("ShaderNodeMixRGB"); hm.blend_type = "MIX"; hm.inputs[0].default_value = 0.55
+    lk.new(vo.outputs["Distance"], hm.inputs[1]); lk.new(n3.outputs["Fac"], hm.inputs[2])
+    bp = nd.new("ShaderNodeBump"); bp.inputs["Strength"].default_value = 0.10; bp.inputs["Distance"].default_value = 1.0
+    lk.new(hm.outputs["Color"], bp.inputs["Height"]); lk.new(bp.outputs["Normal"], b.inputs["Normal"])
+    return m
+
+
+skin = make_skin()
 body.data.materials.append(skin)
 
 deps = bpy.context.evaluated_depsgraph_get()
@@ -75,7 +113,73 @@ def decal(name, x, z, r, sy=1.0, thick=0.5, material=dark):
     return ob
 
 
-decal("puting_r", -92, 268, 9.0); decal("puting_l", 92, 268, 9.0)
+def soft_mat(name, color, rough=0.6):
+    """bahan bertepi lembut: alfa dibaca dari atribut warna titik 'a' (R) lalu dicampur dengan transparan."""
+    m = bpy.data.materials.new(name); m.use_nodes = True
+    nt = m.node_tree; nd = nt.nodes; lk = nt.links
+    b = nd["Principled BSDF"]; b.inputs["Base Color"].default_value = (*color, 1); b.inputs["Roughness"].default_value = rough
+    b.inputs["Subsurface Weight"].default_value = 0.2
+    at = nd.new("ShaderNodeVertexColor"); at.layer_name = "a"
+    tr = nd.new("ShaderNodeBsdfTransparent")
+    mx = nd.new("ShaderNodeMixShader")
+    out = nd["Material Output"]
+    lk.new(at.outputs["Color"], mx.inputs[0]) if False else None
+    sp = nd.new("ShaderNodeSeparateColor"); lk.new(at.outputs["Color"], sp.inputs["Color"])
+    lk.new(sp.outputs["Red"], mx.inputs[0])
+    lk.new(tr.outputs["BSDF"], mx.inputs[1]); lk.new(b.outputs["BSDF"], mx.inputs[2])
+    lk.new(mx.outputs["Shader"], out.inputs["Surface"])
+    return m
+
+
+def decal_soft(name, x, z, r, material, power=1.6, thick=0.35, rings=6, nseg=48, sy=1.0):
+    """bercak berbentuk cakram dengan tepi memudar (areola, tahi lalat) yang mengikuti kulit."""
+    p, n = skin_at(x, z)
+    u, v = frame(p, n)
+    bm = bmesh.new()
+    lay = bm.loops.layers.color.new("a")
+    verts = [[bm.verts.new(tuple(p + n * thick))]]
+    for ri in range(1, rings + 1):
+        rr = r * ri / rings
+        ring = []
+        for k in range(nseg):
+            a = 2 * math.pi * k / nseg
+            q = p + u * (rr * math.cos(a)) + v * (rr * sy * math.sin(a))
+            loc, nn = surf(q + n * 40.0, -n)
+            ring.append(bm.verts.new(tuple((loc if loc is not None else q) + n * thick)))
+        verts.append(ring)
+    def setcol(face, fn):
+        for lp in face.loops:
+            rr_ = (lp.vert.co - Vector(p + n * thick)).length / max(r, 1e-6)
+            al = max(0.0, 1.0 - min(rr_, 1.0)) ** power if rr_ < 0.999 else 0.0
+            lp[lay] = (al, al, al, 1.0)
+    for k in range(nseg):
+        kk = (k + 1) % nseg
+        f = bm.faces.new([verts[0][0], verts[1][k], verts[1][kk]]); setcol(f, None)
+    for ri in range(1, rings):
+        for k in range(nseg):
+            kk = (k + 1) % nseg
+            f = bm.faces.new([verts[ri][k], verts[ri + 1][k], verts[ri + 1][kk], verts[ri][kk]]); setcol(f, None)
+    ob = mesh_obj(name, bm, material)
+    smooth(ob, 80)
+    return ob, p, n
+
+
+areola_m = soft_mat("areola", (0.55, 0.34, 0.28), 0.55)
+mole_m = soft_mat("tahi_lalat", (0.22, 0.12, 0.08), 0.55)
+for sx_, nm in ((-1, "r"), (1, "l")):
+    ob_, p_, n_ = decal_soft(f"areola_{nm}", sx_ * 97, 244, 11.0, areola_m, power=0.55, thick=0.30)
+    # puting kecil
+    bmn = bmesh.new(); bmesh.ops.create_uvsphere(bmn, u_segments=24, v_segments=14, radius=2.5)
+    tip_ = mesh_obj(f"puting_{nm}", bmn, mat("puting", (0.50, 0.30, 0.25), 0.55, 0.0, **{"Subsurface Weight": 0.2}))
+    tip_.scale = (1.0, 1.0, 0.6)
+    q_ = n_.cross(Vector((0, 0, 1))) if abs(n_.z) < 0.99 else Vector((1, 0, 0))
+    rot_ = n_.to_track_quat("Z", "Y")
+    tip_.rotation_euler = rot_.to_euler(); tip_.location = p_ + n_ * 0.9
+    smooth(tip_, 80)
+# tahi lalat dan bintik kecil (tidak simetris, jauh dari area elektroda)
+for k_, (mx_, mz_, mr_) in enumerate(((-40, 300, 1.7), (62, 198, 1.3), (-132, 150, 1.1), (30, 38, 1.5), (122, 262, 2.3), (-18, 336, 1.0), (96, 140, 1.4),
+                                      (-72, 246, 1.2), (44, 112, 0.9), (-60, 175, 1.6), (140, 320, 1.1), (8, 215, 0.9))):
+    decal_soft(f"tahi_lalat_{k_}", mx_, mz_, mr_ * 1.6, mole_m, power=0.8, thick=0.28, rings=3, nseg=24)
 decal("pusar", 0, 0, 5.5, 1.5, 0.3)
 
 # ----------------------------------------------------------------- sabuk (pita melingkar di sekitar pinggang)
@@ -165,6 +269,57 @@ def conform_disc(name, p, n, u, v, cxy, rad, t_lo, t_hi, material, rings=12, nse
 
 JUNC = (0.0, 150.0)                                          # titik sambung kabel (x, z) di tulang dada bagian bawah
 EL = {"RA": (-108.0, 350.0), "LA": (108.0, 350.0), "RL": (-120.0, 78.0)}
+
+
+def add_body_hair(body):
+    """rambut dada, tulang dada, garis tengah perut, dan lengan bawah: helai pendek yang rebah ke bawah mengikuti kulit; kosong di area elektroda dan sabuk."""
+    me = body.data; n_ = len(me.vertices)
+    co = np.zeros(n_ * 3); me.vertices.foreach_get("co", co); co = co.reshape(-1, 3)
+    nr = np.zeros(n_ * 3); me.vertices.foreach_get("normal", nr); nr = nr.reshape(-1, 3)
+    x, z = co[:, 0], co[:, 2]
+
+    def sstep(a, b, v):
+        t = np.clip((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t)
+    front = sstep(-0.05, -0.45, nr[:, 1])
+    chest = sstep(190, 232, z) * (1 - sstep(372, 400, z)) * np.exp(-(x / 98.0) ** 2)
+    abd = 0.55 * np.exp(-(x / 30.0) ** 2) * sstep(30, 70, z) * (1 - sstep(200, 215, z)) + 0.12 * (np.abs(x) < 90) * sstep(30, 70, z) * (1 - sstep(190, 215, z))
+    low = 0.8 * np.exp(-(x / 16.0) ** 2) * sstep(-16, 4, z) * (1 - sstep(30, 60, z))
+    arm = 0.30 * sstep(205, 222, np.abs(x)) * (1 - sstep(285, 305, np.abs(x))) * sstep(-130, -90, z) * (1 - sstep(70, 95, z))
+    w = front * (chest + abd + low) + arm * (nr[:, 1] < 0.4)
+    for lb_, (ex_, ez_) in EL.items():
+        dd = np.hypot(x - ex_, z - ez_)
+        w *= sstep(34, 52, dd)
+    w *= 0.55 + 0.45 * (np.sin(x * 0.09 + 0.7) * np.cos(z * 0.075 + 1.9) * 0.5 + 0.5)       # berbercak, bukan merata
+    w = np.clip(w, 0, 1)
+    vg = body.vertex_groups.new(name="pelo")
+    q = np.round(w * 20).astype(int)
+    for lv in range(1, 21):
+        idx = np.nonzero(q == lv)[0]
+        if len(idx): vg.add(idx.tolist(), lv / 20.0, "REPLACE")
+    bpy.context.view_layer.objects.active = body
+    for o_ in bpy.context.selected_objects: o_.select_set(False)
+    body.select_set(True)
+    bpy.ops.object.particle_system_add()
+    ps = body.particle_systems[-1]
+    st = bpy.data.particles.new("rambut")
+    ps.settings = st
+    st.type = "HAIR"; st.count = int(os.environ.get("HAIRN", "26000")); st.hair_length = 5.5; st.hair_step = 4
+    st.normal_factor = 0.30; st.object_align_factor = (0.0, 0.0, -1.0)
+    st.root_radius = 1.0; st.tip_radius = 0.35; st.radius_scale = 0.09
+    st.child_type = "NONE"; st.use_advanced_hair = False
+    st.roughness_1 = 0.12; st.roughness_1_size = 0.6; st.roughness_endpoint = 0.05
+    st.render_step = 3
+    ps.vertex_group_density = "pelo"
+    hm = bpy.data.materials.new("rambut"); hm.use_nodes = True
+    nt_ = hm.node_tree; nt_.nodes.clear()
+    ho = nt_.nodes.new("ShaderNodeOutputMaterial"); hb = nt_.nodes.new("ShaderNodeBsdfHairPrincipled")
+    hb.inputs["Color"].default_value = (0.065, 0.038, 0.024, 1); hb.inputs["Roughness"].default_value = 0.34
+    nt_.links.new(hb.outputs["BSDF"], ho.inputs["Surface"])
+    body.data.materials.append(hm)
+    st.material = len(body.data.materials)
+
+
+add_body_hair(body)
 el_world = {}
 wires = []
 for lb, (ex, ez) in EL.items():
@@ -208,11 +363,11 @@ for lb in ("RA", "LA", "RL"):
     nrm = np.array([-sz, sx]) / math.hypot(sx, sz)
     bend = {"RA": 26.0, "LA": -26.0, "RL": -16.0}[lb]
     xzs = []
-    for t_ in (0.10, 0.32, 0.60, 0.85, 1.0):
+    for t_ in (0.06, 0.15, 0.27, 0.42, 0.58, 0.74, 0.88, 1.0):
         bb = bend * math.sin(math.pi * t_)
         xzs.append((ex + sx * t_ + nrm[0] * bb, ez + sz * t_ + nrm[1] * bb))
     sk = [skin_at(x_, z_) for (x_, z_) in xzs]
-    offs = [3.4, 2.0, 1.2, 1.0, 1.0]
+    offs = [3.6, 2.8, 2.4, 2.2, 2.1, 2.0, 2.0, 2.0]
     pts = [tuple(e["exit"])] + [tuple(pp + nn * o_) for (pp, nn), o_ in zip(sk, offs)]
     wires.append(tube(f"kawat_{lb}", pts, 0.85, wire_m, 14))
 # selongsong sambungan
@@ -233,12 +388,12 @@ for t_ in (0.2, 0.5, 0.8, 1.0):
 main_pts = [tuple(plug_exit)]
 # turun-naik mengikuti kulit dari plug ke titik sambung
 px_, pz_ = plug_exit.x, plug_exit.z
-for t_ in (0.2, 0.45, 0.7, 0.9, 1.0):
+for t_ in (0.1, 0.2, 0.3, 0.45, 0.6, 0.75, 0.9, 1.0):
     x_ = px_ + (jx0 - px_) * t_ + 14.0 * math.sin(math.pi * t_)
     z_ = pz_ + (jz0 - pz_) * t_
     main_pts.append(None)
     main_pts[-1] = (x_, z_)
-mp3 = [main_pts[0]] + skin_path([q for q in main_pts[1:]], 2.1)
+mp3 = [main_pts[0]] + skin_path([q for q in main_pts[1:]], 2.7)
 main = tube("kabel_utama", mp3, 1.9, wire_m, 16)
 
 # ----------------------------------------------------------------- klip PPG pada jari telunjuk tangan KANAN pasien (kiri gambar)
@@ -246,12 +401,12 @@ G = sistem.G
 tip_asm = Vector((-100.0, -65.99, 28.15))                      # ujung jari referensi pada klip (bingkai asm)
 neck_asm = Vector((-100.0, -34.2, 19.2))
 M3 = Matrix(((0, 0, -1), (1, 0, 0), (0, -1, 0)))               # X_a -> +y, Y_a -> -z (arah jari ke bawah), Z_a -> -x (rahang atas di sisi lateral)
-tip_scene = Vector((-266.0, -47.0, -303.8))
-M_clip = Matrix.Translation(tip_scene) @ M3.to_4x4() @ Matrix.Translation(-tip_asm)
+tip_scene = Vector(hand_pt(-1, -266.0, -47.0, -303.8))              # ujung telunjuk kanan setelah tangan berputar ke dalam
+M_clip = Matrix.Translation(tip_scene) @ Matrix.Rotation(math.radians(HAND_ROT), 4, "Z") @ M3.to_4x4() @ Matrix.Translation(-tip_asm)
 G["klip"]["empty"].matrix_world = M_clip
 neck_w = M_clip @ neck_asm
 gl_exit = DEV.matrix_world @ Vector((-75.0, sistem.S["gland"]["y"], sistem.S["gland"]["zc"]))
-kb = [tuple(gl_exit), tuple(gl_exit + Vector((-18, -4, -4))), (-175.0, gl_exit.y - 6, -88.0), (-205.0, -20.0, -170.0), (-222.0, -2.0, -265.0),
+kb = [tuple(gl_exit), tuple(gl_exit + Vector((-18, -4, -4))), (-175.0, gl_exit.y - 6, -88.0), (-200.0, -20.0, -170.0), (-212.0, 0.0, -262.0),
       (neck_w.x + 34.0, neck_w.y + 10.0, neck_w.z - 52.0), (neck_w.x + 10.0, neck_w.y + 4.0, neck_w.z - 26.0), tuple(neck_w)]
 kab = tube("kabel_ppg_luar", kb, 2.0, mat("kabel_putih", (0.92, 0.92, 0.90), 0.5, 0.0), 16)
 for o in G["kabel_ppg_luar"]["objs"]:

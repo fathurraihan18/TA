@@ -1,0 +1,263 @@
+[
+ {
+  "code": "P-1",
+  "title": "Perakitan: tampak eksplode dan daftar komponen",
+  "blocks": [
+   {
+    "kind": "table",
+    "header": [
+     "No.",
+     "Nama komponen",
+     "Jml",
+     "Keterangan"
+    ],
+    "rows": [
+     [
+      "1",
+      "Shell depan",
+      "1",
+      "PETG putih. Jendela layar 3,5\", lubang saklar KCD11, lubang gland PG7, dinding tanpa boss."
+     ],
+     [
+      "2",
+      "Back plate + sayap sabuk",
+      "1",
+      "PETG putih. 2 slot sabuk, 4 lubang sekrup M3 countersunk."
+     ],
+     [
+      "3",
+      "Penahan sekrup (3 bagian kecil)",
+      "3",
+      "PETG putih. Strip 62 mm (Atas), strip 24 mm dan blok 10 mm (Bawah), masing-masing berlubang pilot M3."
+     ],
+     [
+      "4",
+      "Sekrup M3 x 8 flat head",
+      "4",
+      "Mengunci back plate ke shell melalui penahan (x = +-23 mm, y = +-25,25 mm)."
+     ],
+     [
+      "5",
+      "Layar TFT 3,5\" ILI9488",
+      "1",
+      "480 x 320 piksel, modul PCB merah. Dipasang pada 4 standoff."
+     ],
+     [
+      "6",
+      "Standoff M3 20 mm + baut",
+      "4",
+      "Kuningan. Menghubungkan PCB custom dengan PCB layar."
+     ],
+     [
+      "7",
+      "PCB custom (Gerber)",
+      "1",
+      "Hijau. Tempat ESP32, AD8232, modul powerbank, dan konektor PPG."
+     ],
+     [
+      "8",
+      "ESP32 DevKit C V4",
+      "1",
+      "ESP32-WROOM-32E, 2 x 19 pin, mikro-USB; dipasang pada soket PCB."
+     ],
+     [
+      "9",
+      "Modul ECG AD8232",
+      "1",
+      "PCB merah. Jack TRS 3,5 mm menghadap ke tepi Atas casing."
+     ],
+     [
+      "10",
+      "Modul powerbank / boost",
+      "1",
+      "PCB biru: pengisi baterai dan penaik tegangan 5 V, port USB-C ke dinding Kanan."
+     ],
+     [
+      "11",
+      "Baterai PALO 103450",
+      "1",
+      "Li-ion 3,7 V 2000 mAh, 10 x 34 x 50 mm, konektor JST 2 pin."
+     ],
+     [
+      "12",
+      "Saklar rocker KCD11",
+      "1",
+      "10 x 15 mm, snap-in pada dinding Atas shell."
+     ],
+     [
+      "13",
+      "Cable gland PG7 + mur",
+      "1",
+      "Kabel PPG 3 - 6,5 mm menembus dinding Kanan shell (di bawah lubang USB-C)."
+     ],
+     [
+      "14",
+      "Kabel PPG 4 inti",
+      "1",
+      "Dari konektor PCB (JST) lewat gland menuju klip: VIN, GND, SDA, SCL."
+     ],
+     [
+      "15",
+      "Klip pulse oximeter + HW-605",
+      "1",
+      "Rahang bawah A, rahang atas B, tutup C (cetak 3D), modul MAX30102 HW-605, pegas, sekrup engsel."
+     ],
+     [
+      "16",
+      "Kabel lead 3 inti + plug TRS",
+      "1",
+      "Plug 3,5 mm masuk ke jack AD8232; kabel bercabang 3 lead."
+     ],
+     [
+      "17",
+      "Elektroda ECG sekali pakai",
+      "3",
+      "Merah = RA, kuning = LA, hijau = RL (konektor snap)."
+     ]
+    ],
+    "widths": [
+     0.9,
+     3.2,
+     0.8,
+     7.0
+    ],
+    "align": [
+     "c",
+     "l",
+     "c",
+     "l"
+    ]
+   },
+   {
+    "kind": "sub",
+    "text": "Warna pada gambar"
+   },
+   {
+    "kind": "items",
+    "lines": [
+     "Putih: bagian cetak 3D (PETG).",
+     "Hijau: PCB custom (Gerber).",
+     "Merah: PCB layar TFT dan modul AD8232.",
+     "Biru: modul powerbank.",
+     "Kuning: baterai dan standoff.",
+     "Hitam dan abu: ESP32, header, saklar."
+    ],
+    "numbered": false
+   },
+   {
+    "kind": "sub",
+    "text": "Catatan"
+   },
+   {
+    "kind": "items",
+    "lines": [
+     "Baterai digambar rebah penuh. Ruang kosong sisi Bawah hanya 27,8 mm sedangkan baterai 34 mm, jadi tepinya menumpuk 6,1 mm di atas modul AD8232 dan powerbank. Di rakitan nyata baterai agak miring (sekitar 11 derajat) dan perlu isolasi atau busa 1 mm. Casing tidak diubah.",
+     "Dua dari empat sekrup (item 4) tertutup back plate pada sudut pandang ini.",
+     "Klip (item 15) dan elektroda (item 17) berada di luar casing, lihat gambar halaman 2.",
+     "Gambar 3D hanya ilustrasi. Ukuran ada di gambar teknik."
+    ],
+    "numbered": true
+   }
+  ]
+ },
+ {
+  "code": "P-2",
+  "title": "Sistem lengkap dan penempatan pada pengguna",
+  "blocks": [
+   {
+    "kind": "sub",
+    "text": "Penandaan lead elektroda (item 17)"
+   },
+   {
+    "kind": "table",
+    "header": [
+     "Lead",
+     "Warna",
+     "Penempatan pada tubuh",
+     "Keterangan"
+    ],
+    "rows": [
+     [
+      "RA",
+      "Merah",
+      "Bawah klavikula kanan, dekat bahu kanan",
+      "Right Arm: elektroda lengan kanan"
+     ],
+     [
+      "LA",
+      "Kuning",
+      "Bawah klavikula kiri, dekat bahu kiri",
+      "Left Arm: elektroda lengan kiri"
+     ],
+     [
+      "RL",
+      "Hijau",
+      "Perut kanan bawah, di atas pinggul kanan",
+      "Right Leg: elektroda referensi"
+     ]
+    ],
+    "widths": [
+     0.8,
+     1.2,
+     4.2,
+     4.0
+    ],
+    "align": [
+     "c",
+     "c",
+     "l",
+     "l"
+    ]
+   },
+   {
+    "kind": "sub",
+    "text": "Jalur sambungan sinyal dan daya (nomor item sesuai P-1)"
+   },
+   {
+    "kind": "table",
+    "header": [
+     "Jalur",
+     "Urutan komponen"
+    ],
+    "rows": [
+     [
+      "ECG",
+      "Elektroda RA, LA, RL (17) > kabel lead 3 inti + plug TRS 3,5 mm (16) > jack modul AD8232 (9) di dinding Atas > masukan ADC ESP32 (8)"
+     ],
+     [
+      "PPG",
+      "HW-605 MAX30102 di klip (15) > kabel 4 inti VIN, GND, SDA, SCL (14) > gland PG7 (13) di dinding Kanan > konektor PCB (7) > I2C ESP32 (8)"
+     ],
+     [
+      "Daya",
+      "Baterai PALO 103450 (11) > modul powerbank/boost (10) > PCB custom (7) dan ESP32 (8). Saklar KCD11 (12) di dinding Atas."
+     ],
+     [
+      "Tampilan",
+      "ESP32 (8) > konektor PCB custom (7) > layar TFT ILI9488 3,5\" (5) yang dipasang pada standoff (6)"
+     ]
+    ],
+    "widths": [
+     1.2,
+     9.0
+    ],
+    "align": [
+     "c",
+     "l"
+    ]
+   },
+   {
+    "kind": "sub",
+    "text": "Catatan"
+   },
+   {
+    "kind": "items",
+    "lines": [
+     "Elektroda, kabel lead, dan klip pada gambar A adalah model 3D ilustrasi (elektroda snap sekali pakai). Warnanya mengikuti kabel yang dipakai di alat: merah RA, kuning LA, hijau RL.",
+     "Gambar B hanya menunjukkan penempatan. Torso adalah model 3D untuk ilustrasi, bukan model medis. Klip PPG dipasang di jari telunjuk kanan."
+    ],
+    "numbered": true
+   }
+  ]
+ }
+]

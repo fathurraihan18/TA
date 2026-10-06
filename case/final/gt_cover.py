@@ -11,6 +11,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common as _cm
+import ket
 
 CASE, LINES, PREV, OUTD = sys.argv[1:5]
 os.makedirs(OUTD, exist_ok=True)
@@ -126,7 +127,7 @@ def leader(ax, p_from, p_text, text, ha="left", va="center"):
     ax.text(p_text[0] + (0.8 if ha == "left" else -0.8), p_text[1], text, fontsize=FS, ha=ha, va=va, zorder=7)
 
 
-def label(ax, x, y, text, size=8.5, weight="bold", ha="center"):
+def label(ax, x, y, text, size=6.6, weight="bold", ha="center"):
     ax.text(x, y, text, fontsize=size, fontweight=weight, ha=ha, va="center", zorder=7)
 
 
@@ -141,8 +142,8 @@ def new_sheet():
 NPAGE = 4
 
 
-def title_block(ax, page, of, subtitle):
-    _cm.title_block(ax, "GAMBAR TEKNIK: COVER ALAT ECG + PPG", subtitle, page, NPAGE, scale="Skala 1:1   |   Proyeksi sudut ketiga", right_line="Bahan: PETG (cetak 3D FDM)")
+def title_block(ax, page, of, subtitle, ket_ref=None):
+    _cm.title_block(ax, "GAMBAR TEKNIK: COVER ALAT ECG + PPG", subtitle, page, NPAGE, scale="Skala 1:1   |   Proyeksi sudut ketiga", right_line="Bahan: PETG (cetak 3D FDM)", ket=ket_ref)
 
 
 # =============================================================== HALAMAN 1
@@ -173,7 +174,7 @@ def page1():
     arrow(ax, (xw, wy0), (xw, wy1)); ax.text(xw + 0.9, f.p(0, -12, 0)[1], f"{f1(win[1])}", fontsize=FS, rotation=90, ha="left", va="center", zorder=7)
     ax.text((wx0 + wx1) / 2, f.p(0, -3, 0)[1], "JENDELA LAYAR (area aktif 73,44 x 48,96)", fontsize=6, ha="center", va="center", zorder=7)
     ax.text((wx0 + wx1) / 2, f.p(0, -7, 0)[1], f"digeser {f1(abs(win[2]))} ke Kanan dari pusat", fontsize=5.6, ha="center", va="center", zorder=7)
-    leader(ax, f.p(HX - 1.4, HY - 1.4, 0), (f.p(HX, HY, 0)[0] - 28, f.p(HX, HY, 0)[1] + 9), f"R{f1(S['out_r'])}  (sudut luar)", ha="right")
+    leader(ax, f.p(HX - 1.4, HY - 1.4, 0), (f.p(HX, HY, 0)[0] + 8, f.p(HX, HY, 0)[1] + 8), f"R{f1(S['out_r'])}", ha="left")
     label(ax, 200, yt + 12.5, "TAMPAK DEPAN")
 
     # ---------- TAMPAK ATAS = muka dinding Atas (u=X, v=-Z)
@@ -189,14 +190,12 @@ def page1():
     yl = ya_top + 7
     hdim(ax, xj, xa_Kiri, yl, ya_top, ya_top, f1(HX - jk["x"]))
     leader(ax, (xj - (jk["d"] + 0.2) / 2, yj), (xj - 9, yj), f"JACK AD8232  Ø{f1(jk['d'] + 0.2)}", ha="right")
-    ax.text(xj - 9.8, yj - 3.2, f"(Z={f1(jk['zc'] - ZB)} dari bidang belakang)", fontsize=5.4, ha="right", va="center", zorder=7)
     # saklar
     xs, ys = a.p(sw["x"], 0, sw["zc"])
     center_cross(ax, xs, ys)
     yl2 = ya_top + 13
     hdim(ax, xs, xa_Kiri, yl2, ya_top, ya_top, f1(HX - sw["x"]))
     leader(ax, (xs + (sw["cut_w"] + 0.1) / 2, ys), (xs + 11, ys), f"SAKLAR KCD11  {f1(sw['cut_w'] + 0.1)} x {f1(sw['cut_h'] + 0.1)}")
-    ax.text(xs + 11.8, ys - 3.2, f"(Z={f1(sw['zc'] - ZB)} dari bidang belakang)", fontsize=5.4, ha="left", va="center", zorder=7)
     # tonjolan gland di sisi kanan (terlihat dari atas)
     xg0 = a.p(-HX, 0, 0)[0]; xg1 = a.p(-HX - gl["out"], 0, 0)[0]
     yg = a.p(0, 0, gl["zc"])[1]
@@ -236,9 +235,8 @@ def page1():
     vdim(ax, xk0 - 7, yk_b, ygl, xk0, xk0, f1(gl["y"] - YB), side="left")
     hdim(ax, k.p(0, 0, ZB)[0], xgl, yk_b - 6.5, yk_b, yk_b, f1(gl["zc"] - ZB))
     leader(ax, (xgl + 4.5, ygl - 4.5), (xk1 + 9, ygl - 12), f"GLAND PG7  Ø{f1(gl['hole'])}")
-    ax.text(xk1 + 9.8, ygl - 15.5, f"(kantong mur AF {f1(gl['nut_af'])})", fontsize=5.4, ha="left", va="center", zorder=7)
     hdim(ax, xk0, xk1, yk_b - 12.5, yk_b, yk_b, f1(DEPTH))
-    label(ax, 92, yk_t + 12.5, "TAMPAK KANAN")
+    label(ax, 62, yk_t + 12.5, "TAMPAK KANAN")
 
     # ---------- TAMPAK KIRI (u=-Z, v=Y)
     l = V["kiri"]
@@ -252,29 +250,18 @@ def page1():
     ax.text(l.p(0, 0, ZT)[0] + 0.0, yl_t + 12.5, "", fontsize=1)
     label(ax, 308, yk_t + 12.5, "TAMPAK KIRI")
 
-    # ---------- keterangan
-    notes = ["KETERANGAN",
-             "1. Z diukur dari bidang belakang casing (Z=0).",
-             "    Dari ujung ekor baut: Z' = Z - 3,5.",
-             "2. Posisi lubang dari Gerber PCB + ukuran yang diukur;",
-             "    lubang sudah +0,2 mm (kompensasi cetak).",
-             "3. Sisi: Kiri = sisi header TFT, Atas = sisi jack",
-             "    AD8232 + saklar, Bawah = micro-USB ESP32,",
-             "    Kanan = USB-C powerbank + gland PPG.",
-             "4. Dari tepi PCB: jack 61,3 dari Kiri;",
-             "    micro-USB 20,7 dari Kiri;",
-             "    USB-C 18,1 dari Atas.",
-             f"5. Shell {f1(2 * HX)} x {f1h(2 * HH)} x {f1(ZT - ZS)}; dengan back",
-             f"    plate + sayap: {f1(2 * PX)} x {f1h(2 * HH)} x {f1(DEPTH)}.",
-             f"6. Rongga dalam {f1(S['cavity'][0])} x {f1h(S['cavity'][1])}, dinding 3,0.",
-             "7. Plate: 4 sekrup M3x8 flat head dari belakang",
-             "    ke 3 penahan sekrup (hal. 4)."] + ([
-             f"8. Ruang baterai 10 x 34 x 50: rongga sisi",
-             f"    Bawah diperlebar {f1(S['bay'])} (tepi PCB ke dinding",
-             f"    {f1(S['cavity_y'][0] - S['pcb']['y0'])}). Penyangga: 3 rusuk + 2 stopper di plate."] if V3 else [])
-    for i, t in enumerate(notes):
-        ax.text(340, 280 - i * 4.4, t, fontsize=6.3, fontweight="bold" if i == 0 else "normal", va="center", zorder=7)
-    title_block(ax, 1, 2, "Tampak depan, atas, bawah, kanan, kiri")
+    # ---------- keterangan (berkas terpisah)
+    ket.begin("T-1", "Gambar teknik cover: tampak depan, atas, bawah, kanan, kiri")
+    ket.items(["Z diukur dari bidang belakang casing (Z = 0). Dari ujung ekor baut: Z' = Z - 3,5.",
+               "Posisi lubang diambil dari Gerber PCB dan ukuran hasil ukur. Semua lubang sudah +0,2 mm sebagai kompensasi cetak.",
+               "Sisi casing: Kiri = sisi header TFT, Atas = sisi jack AD8232 dan saklar, Bawah = micro-USB ESP32, Kanan = USB-C powerbank dan gland PPG.",
+               "Dari tepi PCB: jack 61,3 mm dari Kiri, micro-USB 20,7 mm dari Kiri, USB-C 18,1 mm dari Atas.",
+               f"Shell {f1(2 * HX)} x {f1h(2 * HH)} x {f1(ZT - ZS)} mm. Dengan back plate dan sayap: {f1(2 * PX)} x {f1h(2 * HH)} x {f1(DEPTH)} mm.",
+               f"Rongga dalam {f1(S['cavity'][0])} x {f1h(S['cavity'][1])} mm, tebal dinding 3,0 mm.",
+               "Plate dipasang dengan 4 sekrup M3 x 8 flat head dari belakang ke 3 penahan sekrup (lihat halaman 4)."] + ([
+               f"Ruang baterai 10 x 34 x 50 mm: rongga sisi Bawah diperlebar {f1(S['bay'])} mm (tepi PCB ke dinding {f1(S['cavity_y'][0] - S['pcb']['y0'])} mm). Penyangga: 3 rusuk dan 2 stopper di plate."] if V3 else []),
+              numbered=True)
+    title_block(ax, 1, 2, "Tampak depan, atas, bawah, kanan, kiri", "T-1")
     return fig
 
 
@@ -296,10 +283,9 @@ def page2():
     sxR = bk.p(-belt["slot_cx"], 0, 0)[0]
     s_hw = belt["slot_w"] / 2
     hdim(ax, sxR - s_hw, sxR + s_hw, y_t + 6.5, y_t, y_t, f1(belt["slot_w"]), small=True)
-    vdim(ax, sxR + s_hw + 8, bk.p(0, YC - belt["slot_l"] / 2, 0)[1], bk.p(0, YC + belt["slot_l"] / 2, 0)[1], sxR + s_hw, sxR + s_hw, f1(belt["slot_l"]), side="right")
+    vdim(ax, sxR - s_hw - 9, bk.p(0, YC - belt["slot_l"] / 2, 0)[1], bk.p(0, YC + belt["slot_l"] / 2, 0)[1], sxR - s_hw, sxR - s_hw, f1(belt["slot_l"]), side="left")
     hdim(ax, x_r, sxR + s_hw, y_b - 12.5, y_b, y_b, f1(PX - belt["slot_cx"] - s_hw), small=True)
     hdim(ax, sxR - s_hw, bk.p(-HX, 0, 0)[0], y_b - 18.5, y_b, y_b, f1(belt["slot_cx"] - s_hw - HX), small=True)
-    ax.text(sxR - 6, bk.p(0, YC, 0)[1] + 12, "slot sabuk: lebar sabuk <= 40, tebal <= 4,5", fontsize=5.4, ha="right", va="center", zorder=7)
     # dinding shell (garis putus) dan lubang sekrup
     sh_x0, sh_x1 = bk.p(HX, 0, 0)[0], bk.p(-HX, 0, 0)[0]
     ax.add_patch(Rectangle((sh_x0, y_b + 0.0), sh_x1 - sh_x0, y_t - y_b, fill=False, lw=0.4, ec="k", ls=(0, (6, 2)), zorder=5))
@@ -310,24 +296,24 @@ def page2():
     ya_, yb_ = bk.p(0, ys_[0], 0)[1], bk.p(0, ys_[1], 0)[1]
     hdim(ax, xa_, xb_, y_t + 13, yb_, yb_, f1(xs_[1] - xs_[0]))
     vdim(ax, x_l - 8, ya_, yb_, xa_, xa_, f1h(ys_[1] - ys_[0]), side="left")
-    leader(ax, (xb_ + 2.4, ya_ + 2.4), (xb_ + 14, ya_ + 12), "4x lubang M3, countersink Ø6,6 (sekrup M3x8 flat head)")
-    ax.text(130, y_t + 22, "TAMPAK BELAKANG (back plate + sayap)", fontsize=8.5, fontweight="bold", ha="center", va="center")
+    leader(ax, (xb_ + 2.4, ya_ + 2.4), (xb_ - 8, ya_ + 14), "4x M3, Ø6,6 countersink", ha="right")
+    ax.text(130, y_t + 22, "TAMPAK BELAKANG (back plate + sayap)", fontsize=6.6, fontweight="bold", ha="center", va="center")
 
     # ---- gambar isometrik (render Cycles, PETG putih)
-    for fn, (cx_, cy_, w_) in (("cover_iso_depan.png", (330, 244, 108)), ("cover_iso_belakang.png", (330, 168, 108))):
+    for fn, (cx_, cy_, w_) in (("cover_iso_depan.png", (338, 232, 150)), ("cover_iso_belakang.png", (338, 130, 150))):
         p = os.path.join(PREV, fn)
         if os.path.exists(p):
             im = Image.open(p).convert("RGBA")
             a_ = np.asarray(im)[..., 3]; ys_, xs_ = np.where(a_ > 6)
             im = im.crop((max(xs_.min() - 8, 0), max(ys_.min() - 8, 0), min(xs_.max() + 8, im.size[0]), min(ys_.max() + 8, im.size[1])))
             hh_mm = w_ * im.size[1] / im.size[0]
-            if hh_mm > 70: w_ = w_ * 70 / hh_mm; hh_mm = 70
+            if hh_mm > 98: w_ = w_ * 98 / hh_mm; hh_mm = 98
             ax.imshow(np.asarray(im), extent=(cx_ - w_ / 2, cx_ + w_ / 2, cy_ - hh_mm / 2, cy_ + hh_mm / 2), zorder=1, interpolation="lanczos")
-    ax.text(330, 288.5, "ISOMETRIK: depan (kanan-atas) dan belakang", fontsize=8.5, fontweight="bold", ha="center", va="center")
+    ax.text(338, 285, "ISOMETRIK: depan dan belakang", fontsize=6.6, fontweight="bold", ha="center", va="center")
 
     # ---- skema pemakaian sabuk (penampang X-Z di Y=0)
     ox, oy, sc = 130, 118, 1.0     # titik asal skema di kertas
-    ax.text(ox, 156, "SKEMA SABUK (potongan melintang, sabuk lewat 2 slot)", fontsize=8.5, fontweight="bold", ha="center", va="center")
+    ax.text(ox, 156, "SKEMA SABUK (potongan melintang)", fontsize=6.6, fontweight="bold", ha="center", va="center")
 
     def P(x, z): return ox + x * 0.9, oy + z * 0.9
     # plate dengan slot
@@ -342,19 +328,17 @@ def page2():
     path = [(-PX - 10, zt), (-belt["slot_cx"], zt), (-belt["slot_cx"], zb_), (belt["slot_cx"], zb_), (belt["slot_cx"], zt), (PX + 10, zt)]
     xs_p, zs_p = zip(*[P(x, z) for x, z in path])
     ax.plot(xs_p, zs_p, lw=2.6, color="#d9731a", solid_joinstyle="miter", zorder=6)
-    ax.text(*P(0, zb_ - 5), "badan pengguna", fontsize=6.3, ha="center", va="center", zorder=7)
+    ax.text(*P(0, zb_ - 20), "badan pengguna", fontsize=6.3, ha="center", va="center", zorder=7)
     xb0, zb0 = P(-PX - 8, zb_ - 8); xb1, _ = P(PX + 8, zb_ - 8)
     hline(ax, xb0, xb1, zb0 + 0.0, lw=0.6)
     for t in range(0, int(xb1 - xb0), 4):
         ax.plot([xb0 + t, xb0 + t - 2.5], [zb0, zb0 - 2.5], lw=0.3, color="k")
-    ax.text(*P(0, zb_ - 15), "Sabuk turun lewat slot sayap, melintas di belakang back plate, lalu naik lewat slot lain.", fontsize=6.0, ha="center", va="center", zorder=7)
-    ax.text(*P(0, zb_ - 19), "Untuk bahu: sabuk/tali yang sama dipasang melintang lewat kedua slot.", fontsize=6.0, ha="center", va="center", zorder=7)
-
-    # ---- tabel spesifikasi lubang
-    tx, ty = 262, 103
-    ax.text(tx, ty + 24, "TABEL POSISI & UKURAN LUBANG (dari tepi casing, mm)", fontsize=7.2, fontweight="bold", va="center")
-    rows = [("Sisi", "Fitur", "Posisi", "Ukuran lubang"),
-            ("Bawah", "micro-USB ESP32", f"{f1(HX - mc['x'])} dari Kiri; Z {f1(mc['zc'] - (mc['h'] + .2) / 2 - ZB)}-{f1(mc['zc'] + (mc['h'] + .2) / 2 - ZB)}", f"{f1(mc['w'] + .2)} x {f1(mc['h'] + .2)}"),
+    ket.begin("T-2", "Gambar teknik cover: back plate, isometrik, skema sabuk, tabel lubang")
+    ket.sub("Skema sabuk")
+    ket.para("Sabuk turun lewat slot sayap, melintas di belakang back plate, lalu naik lewat slot lain. Untuk bahu, sabuk atau tali yang sama dipasang melintang lewat kedua slot. "
+             "Lebar sabuk maksimal 40 mm, tebal maksimal 4,5 mm.")
+    ket.sub("Tabel posisi dan ukuran lubang (dari tepi casing, mm)")
+    rows = [("Bawah", "micro-USB ESP32", f"{f1(HX - mc['x'])} dari Kiri; Z {f1(mc['zc'] - (mc['h'] + .2) / 2 - ZB)}-{f1(mc['zc'] + (mc['h'] + .2) / 2 - ZB)}", f"{f1(mc['w'] + .2)} x {f1(mc['h'] + .2)}"),
             ("Atas", "jack AD8232", f"{f1(HX - jk['x'])} dari Kiri; Z {f1(jk['zc'] - ZB)}", f"Ø{f1(jk['d'] + .2)}"),
             ("Atas", "saklar KCD11", f"{f1(HX - sw['x'])} dari Kiri; Z {f1(sw['zc'] - ZB)}", f"{f1(sw['cut_w'] + .1)} x {f1(sw['cut_h'] + .1)}"),
             ("Kanan", "USB-C powerbank", f"{f1(HY - uc['y'])} dari Atas; Z {f1(uc['zc'] - (uc['h'] + .2) / 2 - ZB)}-{f1(uc['zc'] + (uc['h'] + .2) / 2 - ZB)}", f"{f1(uc['w'] + .2)} x {f1(uc['h'] + .2)}"),
@@ -362,30 +346,15 @@ def page2():
             ("Depan", "jendela layar", f"pusat, geser {f1(abs(win[2]))} ke Kanan", f"{f1(win[0])} x {f1(win[1])}"),
             ("Belakang", "slot sabuk 2x", f"X = +-{f1(belt['slot_cx'])} dari pusat", f"{f1(belt['slot_w'])} x {f1(belt['slot_l'])}")] + (
             [("Dalam", "ruang baterai (v3)", f"Y {S['battery']['y0']:.1f} s.d. {S['battery']['y1']:.1f} dari pusat pola baut".replace(".", ",").replace("s,d,", "s.d."), "10 x 34 x 50 + celah")] if V3 else [])
-    cw = [17, 36, 62, 33]
-    for r, row in enumerate(rows):
-        yy = ty + 17 - r * 5.2
-        xx = tx
-        for c, cell in enumerate(row):
-            ax.text(xx + 1, yy, cell, fontsize=5.7, fontweight="bold" if r == 0 else "normal", va="center", zorder=7)
-            xx += cw[c]
-        hline(ax, tx, tx + sum(cw), yy - 2.6, lw=0.3)
-    ax.add_patch(Rectangle((tx, ty + 17 - len(rows) * 5.2 + 2.6 - 0.0), sum(cw), len(rows) * 5.2, fill=False, lw=0.5, ec="k"))
-    ax.text(tx, ty - 28.5, "Z diukur dari bidang belakang casing. Posisi dari Gerber PCB; uji ulang dengan jangka sorong.", fontsize=5.2, va="center")
-
-    # ---- BOM
-    bx, by = 40, 66
-    ax.text(bx, by, "DAFTAR KOMPONEN PENDUKUNG", fontsize=7.2, fontweight="bold", va="center")
-    bom = ["1x  Shell depan (PETG)             - file 1_Shell_Depan_siap_cetak.stl",
-           "1x  Back plate + sayap (PETG)       - file 2_BackPlate_siap_cetak.stl",
-           "1x  Penahan sekrup, 3 bagian (PETG) - file 3_Penahan_Sekrup_siap_cetak.stl",
-           "4x  Sekrup M3 x 8 flat head (penutup)",
-           "1x  Cable gland PG7 + mur (kabel 3-6,5 mm)",
-           "1x  Saklar rocker KCD11 mini 10 x 15 mm, snap-in",
-           "4x  Standoff M3 20 mm + baut (sudah ada pada tumpukan)"]
-    for i, t in enumerate(bom):
-        ax.text(bx, by - 5 - i * 4.0, t, fontsize=5.9, va="center")
-    title_block(ax, 2, 2, "Back plate, isometrik, skema sabuk, tabel lubang")
+    ket.table(["Sisi", "Fitur", "Posisi", "Ukuran lubang"], [list(r) for r in rows], widths=[1.3, 2.4, 4.4, 2.6], align=["l", "l", "l", "l"])
+    ket.para("Z diukur dari bidang belakang casing. Posisi diambil dari Gerber PCB, uji ulang dengan jangka sorong.")
+    ket.sub("Daftar komponen pendukung")
+    ket.table(["Jml", "Komponen", "Berkas / keterangan"],
+              [["1", "Shell depan (PETG)", "1_Shell_Depan_siap_cetak.stl"], ["1", "Back plate + sayap (PETG)", "2_BackPlate_siap_cetak.stl"],
+               ["1", "Penahan sekrup, 3 bagian (PETG)", "3_Penahan_Sekrup_siap_cetak.stl"], ["4", "Sekrup M3 x 8 flat head", "penutup back plate"],
+               ["1", "Cable gland PG7 + mur", "untuk kabel 3 - 6,5 mm"], ["1", "Saklar rocker KCD11 mini 10 x 15 mm", "snap-in"],
+               ["4", "Standoff M3 20 mm + baut", "sudah ada pada tumpukan"]], widths=[0.8, 5.0, 4.6], align=["c", "l", "l"])
+    title_block(ax, 2, 2, "Back plate, isometrik, skema sabuk", "T-2")
     return fig
 
 
@@ -396,6 +365,7 @@ if __name__ == "__main__":
         pages += gt_extra.make(CASE, S, OUTD, PREV)
     except ImportError as e:
         print("hal. 3-4 tidak ada:", e)
+    ket.save(os.path.join(OUTD, "ket_teknik_cover.json"))
     with PdfPages(os.path.join(OUTD, "Gambar_Teknik_Cover_ECG_PPG_A3.pdf")) as pdf:
         for f in pages: pdf.savefig(f, dpi=250)
     for i, f in enumerate(pages, 1):
