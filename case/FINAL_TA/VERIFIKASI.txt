@@ -1,0 +1,41 @@
+VERIFIKASI - paket FINAL_TA (tanggal 05-10-2026)
+Sumber geometri : case/v2d_penahan_strip (shell v2 tanpa boss + 3 penahan kecil + back plate v2 tidak berubah), case/sensor_ppg/klip_v2
+Skrip uji       : case/verify_penahan.py, case/final/verify_perakitan.py (trimesh + manifold3d)
+
+1. Berkas cetak (07_STL_siap_cetak) - semua mesh rapat (watertight), satu badan kecuali penahan (3 bagian sengaja satu berkas)
+   Casing_ECG_PPG/1_Shell_Depan_siap_cetak.stl      109,80 x 63,50 x 34,40 mm   36271 mm3   md5 3576a517d843216abd4d644ad57a4426
+   Casing_ECG_PPG/2_BackPlate_siap_cetak.stl        133,00 x 63,50 x  8,50 mm   24190 mm3   md5 ed9ea8f1ebb3438d57badf2640d37651
+   Casing_ECG_PPG/3_Penahan_Sekrup_siap_cetak.stl    62,00 x 30,00 x  4,80 mm    1849 mm3   md5 f32c5ea793b30cf642aeeed32744a32b   (3 bagian: 260,7 / 462,3 / 1126,2 mm3)
+   Klip_PPG/A_RahangBawah_siap_cetak.stl             67,00 x 26,00 x 19,45 mm   11979 mm3   md5 065e787a11e6ff51427cae19d7f888b3
+   Klip_PPG/B_RahangAtas_siap_cetak.stl              67,00 x 26,00 x 17,50 mm   10017 mm3   md5 8e5f61a74a27906b6988973a0deb0b36
+   Klip_PPG/C_TutupBawah_siap_cetak.stl              51,10 x 21,50 x  3,30 mm    2149 mm3   md5 00285f4c1a7ec8c8b615b42b306c1351
+   Klip_PPG/D_ShimPegas_siap_cetak.stl                5,60 x  5,60 x  1,00 mm      17 mm3   md5 2c26491922a3f057c82028100e652c7c
+   A, B, C identik byte-demi-byte dengan berkas yang Anda unggah (md5 sama).
+   Shell dan plate bagian dari STL yang sama dengan model gambar teknik; plate identik dengan plate v2 yang sudah Anda cetak (md5 ed9ea8f1).
+
+2. Casing final = v2 + perubahan minimal (verify_penahan.py: SEMUA LOLOS)
+   - Back plate dan 4 lubang sekrup M3 x 8 flat head sama dengan v2 (selisih 0 mm3).
+   - Shell hanya kehilangan 4 boss sekrup (1043 mm3 dibuang, 0 mm3 ditambah).
+   - Penahan: strip 62 mm (dinding Atas, x = -31...+31, sekrup x = +-23), strip 24 mm (dinding Bawah, x = -35...-11, sekrup x = -23),
+     blok 10 mm (dinding Bawah, x = +18...+28, sekrup x = +23); semua berlubang pilot Ø2,7 mm; dicetak rata di meja, tanpa support.
+   - Celah: batang strip 0,40 mm di atas rim plate; puncak penahan 0,70 mm di bawah PCB utama; ujung sekrup 0,50 mm dari PCB;
+     jarak penahan ke lubang/kaki PCB terdekat 1,92 mm; irisan penahan dengan plate, shell, dan semua komponen = 0 mm3; celah ke dinding shell 0,30 mm.
+   - Ulir sekrup menggigit penahan 5,0 mm (irisan 24,9 mm3 untuk 4 sekrup).
+   - Jarak penahan ke bukaan: jack AD8232 7,2 mm, saklar 11,1 mm, micro-USB 8,6 mm, USB-C 14,9 mm, gland 15,4 mm: tidak ada bukaan tertutup.
+   - Plate + 4 penahan masuk lurus ke shell berisi tumpukan tanpa tabrakan.
+
+3. Tabrakan rakitan lengkap (79 bagian, bingkai rakitan; irisan > 0,5 mm3 dilaporkan)
+   Tidak ada irisan antara shell / plate / penahan dengan komponen elektronik.
+   Irisan yang ada (semuanya diketahui dan wajar):
+   - baterai x AD8232 296 mm3, baterai x powerbank 182 mm3, baterai x header PCB 147 mm3: baterai digambar rebah penuh,
+     padahal ruang kosong sisi Bawah hanya 27,8 mm dan baterai 34 mm (menumpuk 6,1 mm di atas tepi modul, keputusan perancangan); pada rakitan nyata
+     baterai miring ~11 derajat dan bertumpu di atas modul (beri isolasi/busa 1 mm). Puncak baterai tetap di bawah PCB layar (celah ~3,7 mm).
+   - sekrup x penahan 48 mm3: ulir M3 menggigit lubang pilot Ø2,7 (disengaja).
+   - standoff/baut x PCB layar 337 mm3: baut M3 menembus lubang PCB layar yang tidak dimodelkan pada model sederhana.
+   - AD8232 x PCB 9 mm3 dan standoff x PCB 2 mm3: pin header masuk soket, baut menyentuh PCB (pas).
+
+4. Gambar
+   - Dimensi pada gambar teknik dihitung dari geometri STL/penampang (bukan diketik); gambar komponen memakai bbox model.
+   - Tampilan LCD mengikuti dua foto layar alat (ARMOR - Aritmia Monitoring v1.0); sinyal ECG/PPG digambar bersih (HR 74 bpm, SpO2 97 %, PR 76 bpm).
+   - Elektroda: RA merah, LA kuning, RL hijau; penempatan pada gambar torso: RA bawah klavikula kanan, LA bawah klavikula kiri, RL perut kanan bawah;
+     sisi kanan pasien di kiri gambar; klip PPG pada jari telunjuk kanan.
